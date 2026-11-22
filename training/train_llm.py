@@ -66,8 +66,8 @@ def main() -> int:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--output", default="artifacts/lionai-qwen-lora")
     parser.add_argument("--epochs", type=float, default=3)
-    parser.add_argument("--max-length", type=int, default=512)
-    parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--max-length", type=int, default=768)
+    parser.add_argument("--learning-rate", type=float, default=5e-5)
     parser.add_argument("--eval-ratio", type=float, default=0.1)
     args = parser.parse_args()
 
@@ -157,6 +157,8 @@ def main() -> int:
         no_cuda=True,
         num_train_epochs=args.epochs,
         learning_rate=args.learning_rate,
+        warmup_ratio=0.05,
+        weight_decay=0.01,
         per_device_train_batch_size=1,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=8,
