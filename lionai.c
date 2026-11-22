@@ -13,6 +13,8 @@
  * Usage:
  *   lionai create <directory> <topic>
  *   lionai organize <directory> <topic> [--apply]
+    printf("  %s train <dataset.tsv> <model.bin>\\n", program);
+    printf("  %s predict <model.bin> <text>\\n\\n", program);
  *
  * Organize is preview-only unless --apply is explicitly supplied.
  * Current MVP classifies by file extension; it does not inspect file contents.
