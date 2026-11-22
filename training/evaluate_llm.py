@@ -10,7 +10,6 @@ from collections import Counter
 from pathlib import Path
 
 import torch
-from datasets import Dataset
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -111,15 +110,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True)
     ap.add_argument("--adapter", required=True)
-    ap.add_argument("--data", default="training/lionai_sft.jsonl")
+    ap.add_argument("--data", default="training/lionai_eval.jsonl")
     ap.add_argument("--output", default="artifacts/evaluation")
     ap.add_argument("--max-new-tokens", type=int, default=220)
     args = ap.parse_args()
 
     rows = [json.loads(x) for x in Path(args.data).read_text(encoding="utf-8").splitlines() if x.strip()]
-    if len(rows) < 10:
-        raise ValueError("Need at least 10 examples for held-out evaluation.")
-    heldout = list(Dataset.from_list(rows).train_test_split(test_size=0.1, seed=42)["test"])
+    if len(rows) < 20:
+        raise ValueError("Independent evaluation requires at least 20 curated examples.")
+    heldout = rows
 
     torch.set_num_threads(max(1, min(4, os.cpu_count() or 1)))
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
