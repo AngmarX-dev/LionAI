@@ -46,7 +46,11 @@ jobs:
           TOKENIZERS_PARALLELISM: "false"
           PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
         run: |
-          python training/train_qwen3_qlora.py             --model models/Qwen3-8B             --data training/lionai_sft.jsonl             --output artifacts/lionai-qwen3-8b-qlora             --epochs "${{ inputs.epochs || 3 }}"
+          python training/train_qwen3_qlora.py \
+            --model models/Qwen3-8B \
+            --data training/lionai_sft.jsonl \
+            --output artifacts/lionai-qwen3-8b-qlora \
+            --epochs "${{ inputs.epochs || 3 }}"
 
       - name: Run independent Qwen3-8B held-out evaluation
         env:
