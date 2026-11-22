@@ -1,6 +1,10 @@
 name: Train LionAI LLM
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/train-model.yml'
   workflow_dispatch:
     inputs:
       epochs:
