@@ -40,18 +40,21 @@ jobs:
       - name: Install Hugging Face downloader
         run: python -m pip install --upgrade "huggingface_hub>=0.26,<2"
 
-      - name: Download Qwen2.5-0.5B-Instruct
+      - name: Download Qwen2.5-0.5B-Instruct into its own folder
         env:
           MODEL_REVISION: ${{ inputs.revision }}
         run: |
           python - <<'PY'
           import os
+          from pathlib import Path
           from huggingface_hub import snapshot_download
 
+          destination = Path("models/Qwen2.5-0.5B-Instruct")
+          destination.mkdir(parents=True, exist_ok=True)
           path = snapshot_download(
               repo_id="Qwen/Qwen2.5-0.5B-Instruct",
               revision=os.environ["MODEL_REVISION"],
-              local_dir="models/Qwen2.5-0.5B-Instruct",
+              local_dir=str(destination),
               allow_patterns=[
                   "*.json",
                   "*.safetensors",
@@ -61,20 +64,22 @@ jobs:
                   "*.jinja",
               ],
           )
-          print(f"Model downloaded to: {path}")
+          print(f"Model folder: {path}")
           PY
 
-      - name: Verify model files
+      - name: Verify model folder and weights
         run: |
           test -s models/Qwen2.5-0.5B-Instruct/config.json
           find models/Qwen2.5-0.5B-Instruct -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
           test -n "$(find models/Qwen2.5-0.5B-Instruct -maxdepth 1 -name '*.safetensors' -type f -print -quit)"
 
-      - name: Upload model as workflow artifact
+      - name: Upload model folder as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: lionai-qwen2.5-0.5b-instruct
-          path: models/Qwen2.5-0.5B-Instruct/
+          # Upload the parent directory so the artifact retains
+          # Qwen2.5-0.5B-Instruct/ as its top-level folder.
+          path: models/
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
