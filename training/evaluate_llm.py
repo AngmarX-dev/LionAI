@@ -111,7 +111,7 @@ def main() -> int:
     ap.add_argument("--adapter", required=True)
     ap.add_argument("--data", default="training/lionai_eval.jsonl")
     ap.add_argument("--output", default="artifacts/evaluation")
-    ap.add_argument("--max-new-tokens", type=int, default=220)
+    ap.add_argument("--max-new-tokens", type=int, default=512)
     args = ap.parse_args()
 
     rows = [json.loads(x) for x in Path(args.data).read_text(encoding="utf-8").splitlines() if x.strip()]
@@ -140,6 +140,7 @@ def main() -> int:
                 **inputs,
                 max_new_tokens=args.max_new_tokens,
                 do_sample=False,
+                repetition_penalty=1.05,
                 pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
