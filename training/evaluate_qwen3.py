@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Independent QLoRA evaluation for LionAI's Qwen3-8B adapter."""
+"""Independent QLoRA evaluation for LionAI's Qwen3-1.7B adapter."""
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 from pathlib import Path
 
@@ -44,20 +43,14 @@ def score_prediction(prediction: str, reference_text: str, input_text: str) -> d
     reference = json.loads(reference_text)
     input_names = [part.strip() for part in input_text.split("files=", 1)[-1].split(",") if part.strip()]
     result = {
-        "valid_json": predicted is not None,
-        "valid_schema": False,
-        "input_file_count": len(input_names),
-        "filename_coverage": 0.0,
-        "path_match_rate": 0.0,
-        "extension_preservation_rate": 0.0,
-        "safe_paths": False,
-        "needs_review_count": 0,
-        "hallucinated_names": [],
-        "missing_names": [],
+        "valid_json": predicted is not None, "valid_schema": False,
+        "input_file_count": len(input_names), "filename_coverage": 0.0,
+        "path_match_rate": 0.0, "extension_preservation_rate": 0.0,
+        "safe_paths": False, "needs_review_count": 0,
+        "hallucinated_names": [], "missing_names": [],
     }
     if predicted is None:
         return result
-
     mappings = predicted.get("files")
     schema_ok = (
         predicted.get("schema_version") == "1.0"
@@ -68,7 +61,6 @@ def score_prediction(prediction: str, reference_text: str, input_text: str) -> d
     result["valid_schema"] = schema_ok
     if not schema_ok:
         return result
-
     by_name = {}
     for item in mappings:
         name = item.get("original_name")
@@ -79,7 +71,6 @@ def score_prediction(prediction: str, reference_text: str, input_text: str) -> d
     result["missing_names"] = sorted(expected - actual)
     result["hallucinated_names"] = sorted(actual - expected)
     result["filename_coverage"] = len(matched) / max(1, len(expected))
-
     ref_map = {item["original_name"]: item for item in reference.get("files", [])}
     path_matches = ext_matches = safe_count = review_count = 0
     for name in matched:
@@ -94,7 +85,6 @@ def score_prediction(prediction: str, reference_text: str, input_text: str) -> d
         predicted_name = Path(path).name if isinstance(path, str) else ""
         if Path(predicted_name).suffix.casefold() == Path(name).suffix.casefold():
             ext_matches += 1
-
     denominator = max(1, len(matched))
     result["path_match_rate"] = path_matches / max(1, len(expected))
     result["extension_preservation_rate"] = ext_matches / denominator
@@ -105,42 +95,33 @@ def score_prediction(prediction: str, reference_text: str, input_text: str) -> d
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="models/Qwen3-8B")
-    parser.add_argument("--adapter", default="artifacts/lionai-qwen3-8b-qlora/adapter")
+    parser.add_argument("--model", default="models/Qwen3-1.7B")
+    parser.add_argument("--adapter", default="artifacts/lionai-qwen3-1.7b-qlora/adapter")
     parser.add_argument("--data", default="training/lionai_eval.jsonl")
-    parser.add_argument("--output", default="artifacts/lionai-qwen3-8b-evaluation")
+    parser.add_argument("--output", default="artifacts/lionai-qwen3-1.7b-evaluation")
     parser.add_argument("--max-new-tokens", type=int, default=512)
     args = parser.parse_args()
-
     if not torch.cuda.is_available():
-        raise RuntimeError("Qwen3-8B evaluation requires CUDA.")
+        raise RuntimeError("Qwen3-1.7B evaluation requires CUDA.")
     props = torch.cuda.get_device_properties(0)
     vram_gib = props.total_memory / (1024 ** 3)
-    if vram_gib < 16:
-        raise RuntimeError(f"Evaluation requires at least 16 GiB VRAM; detected {vram_gib:.1f} GiB.")
-
+    if vram_gib < 5.5:
+        raise RuntimeError(f"Evaluation requires at least 5.5 GiB VRAM; detected {vram_gib:.2f} GiB.")
     rows = [json.loads(line) for line in Path(args.data).read_text(encoding="utf-8").splitlines() if line.strip()]
     if len(rows) < 20:
         raise ValueError("Independent evaluation requires at least 20 held-out examples.")
-
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
     compute_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     quantization = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=compute_dtype,
-        bnb_4bit_use_double_quant=True,
+        load_in_4bit=True, bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=compute_dtype, bnb_4bit_use_double_quant=True,
     )
     model = AutoModelForCausalLM.from_pretrained(
-        args.model,
-        quantization_config=quantization,
-        device_map={"": 0},
-        torch_dtype=compute_dtype,
-        low_cpu_mem_usage=True,
+        args.model, quantization_config=quantization, device_map={"": 0},
+        torch_dtype=compute_dtype, low_cpu_mem_usage=True,
     )
     model = PeftModel.from_pretrained(model, args.adapter)
     model.eval()
-
     results = []
     for index, row in enumerate(rows, 1):
         messages = [
@@ -153,25 +134,17 @@ def main() -> int:
         inputs = tokenizer(prompt, return_tensors="pt", add_special_tokens=False).to("cuda")
         with torch.inference_mode():
             generated = model.generate(
-                **inputs,
-                max_new_tokens=args.max_new_tokens,
-                do_sample=False,
-                repetition_penalty=1.05,
-                pad_token_id=tokenizer.eos_token_id,
+                **inputs, max_new_tokens=args.max_new_tokens, do_sample=False,
+                repetition_penalty=1.05, pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
         answer = tokenizer.decode(
             generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True
         ).strip()
-        metrics = score_prediction(answer, row["output"], row["input"])
         results.append({
-            "case": index,
-            "input": row["input"],
-            "prediction": answer,
-            "reference": row["output"],
-            **metrics,
+            "case": index, "input": row["input"], "prediction": answer,
+            "reference": row["output"], **score_prediction(answer, row["output"], row["input"]),
         })
-
     keys = (
         "valid_json", "valid_schema", "filename_coverage", "path_match_rate",
         "extension_preservation_rate", "safe_paths",
@@ -181,10 +154,8 @@ def main() -> int:
         for key in keys
     }
     summary = {
-        "model": args.model,
-        "adapter": args.adapter,
-        "evaluation_examples": len(results),
-        "metrics": averages,
+        "model": args.model, "adapter": args.adapter,
+        "evaluation_examples": len(results), "metrics": averages,
         "warning": "Small held-out set; diagnostic only. path_match_rate is exact string match.",
         "results": results,
     }
