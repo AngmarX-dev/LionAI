@@ -25,7 +25,7 @@ def validate(path: str) -> tuple[int, int]:
             for key in ("instruction", "input", "output"):
                 if not isinstance(row.get(key), str) or not row[key].strip():
                     fail(path, line_number, f"{key} must be a non-empty string")
-            match = re.search(r"(?:^|;\\s*)files=(.*)$", row["input"])
+            match = re.search(r"(?:^|;\s*)files=(.*)$", row["input"])
             if not match:
                 fail(path, line_number, "input must include a files= list")
             names = [part.strip() for part in match.group(1).split(",") if part.strip()]
@@ -52,7 +52,7 @@ def validate(path: str) -> tuple[int, int]:
                 if not isinstance(name, str) or not isinstance(target, str):
                     fail(path, line_number, "file names and paths must be strings")
                 p = PurePosixPath(target)
-                if p.is_absolute() or ".." in p.parts or "\\\\" in target or not p.parts:
+                if p.is_absolute() or ".." in p.parts or "\\" in target or not p.parts:
                     fail(path, line_number, f"unsafe relative path: {target!r}")
                 if p.name != name:
                     fail(path, line_number, f"filename changed or extension not preserved: {name!r}")
