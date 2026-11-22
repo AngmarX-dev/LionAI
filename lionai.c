@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <math.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -64,6 +65,124 @@ static FileGroup groups[] = {
 };
 
 #define GROUP_COUNT (sizeof(groups) / sizeof(groups[0]))
+
+#define MODEL_FEATURES 4096
+#define MODEL_MAGIC "LIONNB01"
+
+typedef struct {
+    char magic[8];
+    unsigned int classes;
+    unsigned int features;
+    unsigned int documents[GROUP_COUNT];
+    unsigned int counts[GROUP_COUNT][MODEL_FEATURES];
+} LionModel;
+
+static unsigned int feature_hash(const unsigned char *s, size_t n) {
+    unsigned int h = 2166136261u;
+    size_t i;
+    for (i = 0; i < n; ++i) { h ^= s[i]; h *= 16777619u; }
+    return h % MODEL_FEATURES;
+}
+
+static void model_add_text(LionModel *m, size_t cls, const char *text) {
+    const unsigned char *p = (const unsigned char *)text;
+    while (*p) {
+        unsigned char token[128];
+        size_t n = 0;
+        while (*p && (isalnum(*p) || *p >= 128 || *p == '_' || *p == '-')) {
+            if (n + 1 < sizeof(token)) token[n++] = (unsigned char)tolower(*p);
+            ++p;
+        }
+        if (n) {
+            unsigned int h = feature_hash(token, n);
+            if (m->counts[cls][h] < UINT_MAX) ++m->counts[cls][h];
+        }
+        while (*p && !(isalnum(*p) || *p >= 128 || *p == '_' || *p == '-')) ++p;
+    }
+}
+
+static int model_train(const char *dataset, const char *model_path) {
+    FILE *in = fopen(dataset, "r");
+    FILE *out;
+    LionModel *m;
+    char line[2048];
+    unsigned long rows = 0;
+    size_t i;
+    if (!in) { fprintf(stderr, "Cannot open dataset: %s\n", dataset); return 0; }
+    m = (LionModel *)calloc(1, sizeof(*m));
+    if (!m) { fclose(in); return 0; }
+    memcpy(m->magic, MODEL_MAGIC, 8);
+    m->classes = (unsigned int)GROUP_COUNT;
+    m->features = MODEL_FEATURES;
+    while (fgets(line, sizeof(line), in)) {
+        char *tab = strchr(line, '\t');
+        char *label, *sample, *end;
+        size_t cls;
+        if (!tab) continue;
+        *tab = '\0'; label = line; sample = tab + 1;
+        end = strpbrk(sample, "\r\n"); if (end) *end = '\0';
+        for (cls = 0; cls < GROUP_COUNT; ++cls)
+            if (strcmp(label, groups[cls].name) == 0) break;
+        if (cls == GROUP_COUNT || !*sample) continue;
+        model_add_text(m, cls, sample);
+        if (m->documents[cls] < UINT_MAX) ++m->documents[cls];
+        ++rows;
+    }
+    fclose(in);
+    if (!rows) { free(m); fprintf(stderr, "Dataset has no valid labeled rows.\n"); return 0; }
+    out = fopen(model_path, "wb");
+    if (!out) { free(m); fprintf(stderr, "Cannot write model: %s\n", model_path); return 0; }
+    i = fwrite(m, sizeof(*m), 1, out);
+    fclose(out); free(m);
+    if (i != 1) { fprintf(stderr, "Failed to save model.\n"); return 0; }
+    printf("Trained LionAI CPU classifier from %lu examples; model: %s\n", rows, model_path);
+    printf("Note: this is a small baseline model; validate it with separate test examples.\n");
+    return 1;
+}
+
+static int model_predict(const char *model_path, const char *text) {
+    FILE *in = fopen(model_path, "rb");
+    LionModel *m;
+    unsigned int features[MODEL_FEATURES] = {0};
+    unsigned long total_docs = 0;
+    double best = -1.0e300;
+    size_t best_cls = GROUP_COUNT, cls, f;
+    const unsigned char *p = (const unsigned char *)text;
+    if (!in) { fprintf(stderr, "Cannot open model: %s\n", model_path); return 0; }
+    m = (LionModel *)malloc(sizeof(*m));
+    if (!m) { fclose(in); return 0; }
+    if (fread(m, sizeof(*m), 1, in) != 1 || memcmp(m->magic, MODEL_MAGIC, 8) ||
+        m->classes != GROUP_COUNT || m->features != MODEL_FEATURES) {
+        fclose(in); free(m); fprintf(stderr, "Invalid or incompatible model file.\n"); return 0;
+    }
+    fclose(in);
+    while (*p) {
+        unsigned char token[128]; size_t n = 0;
+        while (*p && (isalnum(*p) || *p >= 128 || *p == '_' || *p == '-')) {
+            if (n + 1 < sizeof(token)) token[n++] = (unsigned char)tolower(*p);
+            ++p;
+        }
+        if (n) { unsigned int h = feature_hash(token, n); if (features[h] < UINT_MAX) ++features[h]; }
+        while (*p && !(isalnum(*p) || *p >= 128 || *p == '_' || *p == '-')) ++p;
+    }
+    for (cls = 0; cls < GROUP_COUNT; ++cls) total_docs += m->documents[cls];
+    for (cls = 0; cls < GROUP_COUNT; ++cls) {
+        double score;
+        unsigned long class_total = 0;
+        for (f = 0; f < MODEL_FEATURES; ++f) class_total += m->counts[cls][f];
+        score = log((double)(m->documents[cls] + 1) / (double)(total_docs + GROUP_COUNT));
+        for (f = 0; f < MODEL_FEATURES; ++f) if (features[f]) {
+            double probability = (double)(m->counts[cls][f] + 1) /
+                                 (double)(class_total + MODEL_FEATURES);
+            score += (double)features[f] * log(probability);
+        }
+        if (score > best) { best = score; best_cls = cls; }
+    }
+    if (best_cls < GROUP_COUNT) printf("%s\n", groups[best_cls].name);
+    free(m);
+    return best_cls < GROUP_COUNT;
+}
+
 
 static void print_usage(const char *program) {
     printf("LionAI %s - Lightweight file organizer\n\n", LIONAI_VERSION);
@@ -332,6 +451,10 @@ static int organize_directory(const char *root, const char *topic, int apply) {
 }
 
 int main(int argc, char **argv) {
+    if (argc == 4 && strcmp(argv[1], "train") == 0)
+        return model_train(argv[2], argv[3]) ? 0 : 1;
+    if (argc == 4 && strcmp(argv[1], "predict") == 0)
+        return model_predict(argv[2], argv[3]) ? 0 : 1;
     if (argc < 2 || strcmp(argv[1], "--help") == 0 ||
         strcmp(argv[1], "-h") == 0) {
         print_usage(argv[0]);
