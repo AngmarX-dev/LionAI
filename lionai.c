@@ -1,3 +1,7 @@
+#ifndef _WIN32
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 /*
  * LionAI - lightweight, native file organizer
  * Single-file C11 implementation. No Python, network, or external AI service.
@@ -89,14 +93,11 @@ static int contains_case_insensitive(const char *text, const char *needle) {
 
 static int path_join(char *out, size_t cap, const char *a, const char *b) {
     size_t n = strlen(a);
-    int written = snprintf(out, cap, "%s%c%s", a,
-        (n && (a[n - 1] == '/' || a[n - 1] == '\\')) ? '\0' : PATH_SEP, b);
-    if (written < 0 || (size_t)written >= cap) return 0;
-    /* Remove the separator placeholder when the input already ends in one. */
-    if (n && (a[n - 1] == '/' || a[n - 1] == '\\')) {
-        memmove(out + n, out + n + 1, strlen(out + n + 1) + 1);
-    }
-    return 1;
+    int has_separator = n > 0 && (a[n - 1] == '/' || a[n - 1] == '\\');
+    int written;
+    if (has_separator) written = snprintf(out, cap, "%s%s", a, b);
+    else written = snprintf(out, cap, "%s%c%s", a, PATH_SEP, b);
+    return written >= 0 && (size_t)written < cap;
 }
 
 static int is_directory(const char *path) {
