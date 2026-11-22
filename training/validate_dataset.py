@@ -25,7 +25,7 @@ def validate(path: str) -> tuple[int, int]:
             for key in ("instruction", "input", "output"):
                 if not isinstance(row.get(key), str) or not row[key].strip():
                     fail(path, line_number, f"{key} must be a non-empty string")
-            match = re.search(r"(?:^|;\s*)files=(.*)$", row["input"])
+            match = re.search(r"files=(.*)$", row["input"])
             if not match:
                 fail(path, line_number, "input must include a files= list")
             names = [part.strip() for part in match.group(1).split(",") if part.strip()]
