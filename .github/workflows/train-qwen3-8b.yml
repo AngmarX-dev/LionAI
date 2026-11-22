@@ -38,8 +38,8 @@ jobs:
       - name: Download Qwen3-8B into models/Qwen3-8B
         run: python training/download_model.py --model Qwen/Qwen3-8B --destination models/Qwen3-8B
 
-      - name: Validate training dataset
-        run: python training/validate_dataset.py training/lionai_sft.jsonl
+      - name: Validate training and held-out datasets
+        run: python training/validate_dataset.py training/lionai_sft.jsonl training/lionai_eval.jsonl
 
       - name: Fine-tune Qwen3-8B with 4-bit QLoRA
         env:
@@ -48,12 +48,31 @@ jobs:
         run: |
           python training/train_qwen3_qlora.py             --model models/Qwen3-8B             --data training/lionai_sft.jsonl             --output artifacts/lionai-qwen3-8b-qlora             --epochs "${{ inputs.epochs || 3 }}"
 
+      - name: Run independent Qwen3-8B held-out evaluation
+        env:
+          TOKENIZERS_PARALLELISM: "false"
+          PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+        run: |
+          python training/evaluate_qwen3.py \
+            --model models/Qwen3-8B \
+            --adapter artifacts/lionai-qwen3-8b-qlora/adapter \
+            --data training/lionai_eval.jsonl \
+            --output artifacts/lionai-qwen3-8b-evaluation
+
       - name: Verify adapter output
         run: |
           test -s artifacts/lionai-qwen3-8b-qlora/adapter/adapter_config.json
           test -s artifacts/lionai-qwen3-8b-qlora/adapter/adapter_model.safetensors
           test -s artifacts/lionai-qwen3-8b-qlora/metrics.json
           python -m json.tool artifacts/lionai-qwen3-8b-qlora/metrics.json
+
+      - name: Upload Qwen3-8B evaluation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lionai-qwen3-8b-evaluation
+          path: artifacts/lionai-qwen3-8b-evaluation/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload Qwen3-8B adapter
         uses: actions/upload-artifact@v4
