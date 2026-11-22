@@ -35,6 +35,25 @@ def read_records(path: Path) -> list[dict[str, str]]:
             for key in ("instruction", "input", "output"):
                 if not isinstance(item.get(key), str) or not item[key].strip():
                     raise ValueError(f"Line {line_number}: missing non-empty {key}")
+            try:
+                target = json.loads(item["output"])
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Line {line_number}: output must be valid JSON") from exc
+            if not isinstance(target, dict) or target.get("schema_version") != "1.0":
+                raise ValueError(f"Line {line_number}: unsupported output schema")
+            if not isinstance(target.get("folders"), list) or not isinstance(target.get("files"), list):
+                raise ValueError(f"Line {line_number}: output needs folders[] and files[]")
+            for entry in target["files"]:
+                if not isinstance(entry, dict) or not all(
+                    key in entry for key in ("original_name", "suggested_path", "confidence", "needs_review")
+                ):
+                    raise ValueError(f"Line {line_number}: invalid file mapping")
+                if not isinstance(entry["needs_review"], bool):
+                    raise ValueError(f"Line {line_number}: needs_review must be boolean")
+                if not isinstance(entry["confidence"], (int, float)) or not 0 <= entry["confidence"] <= 1:
+                    raise ValueError(f"Line {line_number}: confidence must be between 0 and 1")
+                if Path(entry["suggested_path"]).is_absolute() or ".." in Path(entry["suggested_path"]).parts:
+                    raise ValueError(f"Line {line_number}: unsafe suggested_path")
             rows.append(item)
     if len(rows) < 10:
         raise ValueError("At least 10 examples are required; use a larger, diverse dataset.")
@@ -100,14 +119,30 @@ def main() -> int:
             full_messages, tokenize=False, add_generation_prompt=False
         )
         prompt_ids = tokenizer(prompt, add_special_tokens=False)["input_ids"]
-        encoded = tokenizer(
-            full, max_length=args.max_length, truncation=True, add_special_tokens=False
-        )
-        labels = list(encoded["input_ids"])
-        prompt_length = min(len(prompt_ids), len(labels))
-        labels[:prompt_length] = [-100] * prompt_length
-        encoded["labels"] = labels
-        return encoded
+        full_ids = tokenizer(full, add_special_tokens=False)["input_ids"]
+
+        # Require an exact token prefix before masking the user/system prompt.
+        if full_ids[:len(prompt_ids)] != prompt_ids:
+            raise ValueError("Chat-template prompt is not a token prefix of the full conversation")
+        answer_ids = full_ids[len(prompt_ids):]
+        if not answer_ids:
+            raise ValueError("Training example has no supervised assistant tokens")
+        if len(prompt_ids) >= args.max_length:
+            raise ValueError(
+                f"Prompt uses {len(prompt_ids)} tokens; max_length={args.max_length} "
+                "leaves no room for the assistant target"
+            )
+
+        target_ids = answer_ids[: args.max_length - len(prompt_ids)]
+        input_ids = prompt_ids + target_ids
+        labels = ([-100] * len(prompt_ids)) + target_ids
+        if not any(label != -100 for label in labels):
+            raise ValueError("Example has zero supervised target tokens")
+        return {
+            "input_ids": input_ids,
+            "attention_mask": [1] * len(input_ids),
+            "labels": labels,
+        }
 
     tokenized = dataset.map(
         encode,
