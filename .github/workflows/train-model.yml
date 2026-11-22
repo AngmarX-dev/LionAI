@@ -77,8 +77,8 @@ jobs:
             --model models/Qwen2.5-0.5B-Instruct \
             --data training/lionai_sft.jsonl \
             --output artifacts/lionai-qwen-lora \
-            --epochs "${{ inputs.epochs }}" \
-            --max-length "${{ inputs.max_length }}"
+            --epochs "${{ inputs.epochs || 3 }}" \
+            --max-length "${{ inputs.max_length || 384 }}"
 
       - name: Validate trained adapter and metrics
         shell: bash
