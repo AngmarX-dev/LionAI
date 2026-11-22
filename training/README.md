@@ -4,6 +4,26 @@
 
 Base model: `Qwen/Qwen2.5-0.5B-Instruct` (0.49B parameters, Apache-2.0). This is the single LLM selected for LionAI's first fine-tuning experiment.
 
+## Download the base model with GitHub Actions
+
+The repository includes `.github/workflows/download-model.yml`. To run it:
+
+1. Open the LionAI repository on GitHub and select **Actions**.
+2. Select **Download LionAI base model**.
+3. Choose **Run workflow**; keep revision as `main` unless a specific model revision is required.
+4. Wait for the `download-model` job to finish successfully.
+5. Open that workflow run's **Artifacts** section and download `lionai-qwen2.5-0.5b-instruct`.
+
+The workflow downloads the model from the official Hugging Face repository, checks that the configuration and SafeTensors weights exist, and publishes them as a GitHub Actions artifact for 7 days. It also caches the downloaded files between compatible workflow runs. The large model weights are deliberately not committed to Git.
+
+After extracting the artifact into the repository root, the model directory should be:
+
+```text
+models/Qwen2.5-0.5B-Instruct/
+```
+
+Then pass that local directory to the training script with `--model` (see below). The model download workflow only downloads and packages the base model; it does not start training automatically.
+
 ## CPU-only LoRA fine-tuning
 
 Use Python only on the development/training machine. Training runs on CPU in FP32; it can be slow. The 0.5B model is selected to keep the experiment modest, but actual RAM/time depend on the OS, PyTorch build, sequence length, and dataset size.
@@ -15,7 +35,7 @@ python -m venv .venv
 # Windows: .venv\\Scripts\\activate
 # Linux: source .venv/bin/activate
 python -m pip install -r training/requirements.txt
-python training/train_llm.py --data training/lionai_sft.jsonl --epochs 3
+python training/train_llm.py --model models/Qwen2.5-0.5B-Instruct --data training/lionai_sft.jsonl --epochs 3
 ```
 
 The script creates a train/evaluation split and saves a LoRA adapter and evaluation loss under `artifacts/lionai-qwen-lora/`. Do not treat training loss as proof of useful behavior; test on a separate hand-reviewed set that was not included in training.
