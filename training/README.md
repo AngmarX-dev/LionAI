@@ -1,60 +1,64 @@
-# LionAI LLM training
+# LionAI model training
 
-## Model choice
+## Selected large model: Qwen3-8B
 
-Base model: `Qwen/Qwen2.5-0.5B-Instruct` (0.49B parameters, Apache-2.0). This is the single LLM selected for LionAI's first fine-tuning experiment.
+The new candidate is the official [Qwen/Qwen3-8B](https://huggingface.co/Qwen/Qwen3-8B) checkpoint:
 
-## Download the base model with GitHub Actions
+- 8.2B parameters, Apache-2.0 license.
+- Multilingual model supporting 100+ languages.
+- 32,768-token native context.
+- BF16 Hugging Face checkpoint for fine-tuning.
 
-The repository includes `.github/workflows/download-model.yml`. To run it:
+The previous Qwen2.5-0.5B CPU LoRA run is retained only as a legacy baseline. It is not the selected large model.
 
-1. Open the LionAI repository on GitHub and select **Actions**.
-2. Select **Download LionAI base model**.
-3. Choose **Run workflow**; keep revision as `main` unless a specific model revision is required.
-4. Wait for the `download-model` job to finish successfully.
-5. Open that workflow run's **Artifacts** section and download `lionai-qwen2.5-0.5b-instruct`.
+## Download into models/
 
-The workflow downloads the model from the official Hugging Face repository into a dedicated folder, `models/Qwen2.5-0.5B-Instruct/`. It verifies the configuration and SafeTensors weights, then uploads the parent `models/` directory so the artifact preserves this folder structure:
-
-```text
-lionai-qwen2.5-0.5b-instruct.zip
-└── Qwen2.5-0.5B-Instruct/
-    ├── config.json
-    ├── model.safetensors
-    ├── tokenizer.json
-    └── ...
-```
-
-After extracting the artifact's `Qwen2.5-0.5B-Instruct/` folder into the repository's `models/` directory, the model path will be `models/Qwen2.5-0.5B-Instruct/`. The artifact is retained for 7 days. GitHub Actions also caches the downloaded files between compatible runs. The large model weights are deliberately not committed to Git.
-
-Then pass that local directory to the training script with `--model` (see below). The model download workflow only downloads and packages the base model; it does not start training automatically.
-
-## CPU-only LoRA fine-tuning
-
-Use Python only on the development/training machine. Training runs on CPU in FP32; it can be slow. The 0.5B model is selected to keep the experiment modest, but actual RAM/time depend on the OS, PyTorch build, sequence length, and dataset size.
-
-From the repository root:
+Install the Qwen3-specific requirements and download the official checkpoint:
 
 ```bash
-python -m venv .venv
-# Windows: .venv\\Scripts\\activate
-# Linux: source .venv/bin/activate
-python -m pip install -r training/requirements.txt
-python training/train_llm.py --model models/Qwen2.5-0.5B-Instruct --data training/lionai_sft.jsonl --epochs 3
+python -m pip install -r training/requirements-qwen3.txt
+python training/download_model.py --model Qwen/Qwen3-8B --destination models/Qwen3-8B
 ```
 
-The script creates a train/evaluation split and saves a LoRA adapter and evaluation loss under `artifacts/lionai-qwen-lora/`. Do not treat training loss as proof of useful behavior; test on a separate hand-reviewed set that was not included in training.
+The downloader verifies `config.json`, tokenizer files, Qwen3 model type, and the presence/size of SafeTensors weights. The full checkpoint is approximately 16–17 GB. Keep at least 22 GB of free disk space before starting. The large model files are not committed to Git.
 
-## Important limitations
+The same download step is included in the Qwen3 training workflow, so a configured runner receives the model under `models/Qwen3-8B/` before training.
 
-- The committed JSONL file is a small starter dataset for validating the pipeline, not enough to create a dependable specialized assistant.
-- Expand it with varied, permissioned examples and hold out test examples before relying on it.
-- The model sees filenames and user-provided descriptions only. Do not feed private document contents into training.
-- The LLM is not yet connected to file operations. Its output must be parsed against a strict schema, path-validated, previewed, and explicitly approved before any move/rename.
-- The current C Naive Bayes experiment is a separate legacy baseline; it is not the LLM and is not used by this LoRA training script.
+## QLoRA training requirements
 
-## Native LionOS direction
+An 8B model is not suitable for the previous CPU-only FP32 workflow. LionAI now uses 4-bit NF4 QLoRA through bitsandbytes.
 
-For inference without Python, use a GGUF export and link a native C/C++ runtime such as `llama.cpp`. `llama.cpp` supports CPU inference and GGUF. The LionOS integration should package the model file and runtime with the OS build; Python is not needed on the target system. This is a native runtime dependency, not a single self-contained C source file.
+The workflow `.github/workflows/train-qwen3-8b.yml` is manually started from GitHub Actions. It requires a **self-hosted Linux x64 GPU runner** carrying the `gpu` label and at least **16 GiB of GPU VRAM**. It checks CUDA and VRAM before loading the model; it will stop with a clear error rather than trying an unsafe CPU fallback.
 
-Do not convert the adapter until training and evaluation are satisfactory. The conversion/quantization step should use the matching `llama.cpp` conversion tools and be tested against the exact pinned runtime version.
+The current development laptop profile available in this project context has 6 GB dedicated GPU memory, so it does not meet this training workflow's 16 GiB minimum. It can be used for testing smaller quantized inference builds, but not for this QLoRA training profile.
+
+For direct training on a suitable GPU runner:
+
+```bash
+python -m pip install -r training/requirements-qwen3.txt
+python training/download_model.py --model Qwen/Qwen3-8B --destination models/Qwen3-8B
+python training/validate_dataset.py training/lionai_sft.jsonl
+python training/train_qwen3_qlora.py --model models/Qwen3-8B --data training/lionai_sft.jsonl --epochs 3
+```
+
+The adapter and training metrics are written to `artifacts/lionai-qwen3-8b-qlora/`. Training loss is only a diagnostic; it does not establish file-organization accuracy.
+
+## Dataset and evaluation
+
+The current JSONL dataset is still a small starter set. Expand it with diverse, permissioned examples and maintain a separate held-out set. Evaluation must measure at least:
+
+- Exact and semantic destination-path quality.
+- Correct file-to-role assignment.
+- Filename coverage and extension preservation.
+- JSON/schema validity and path safety.
+- Appropriate `Other/Review` decisions for ambiguous inputs.
+
+Do not export GGUF until independent evaluation demonstrates meaningful improvement.
+
+## Safety and native integration
+
+- The model receives only a user-supplied topic and file metadata such as names/extensions. Never send file contents to the model.
+- The model cannot directly move or delete files.
+- Validate every generated path in native code, reject traversal/absolute paths and collisions, and show a preview before any change.
+- Applying a plan must require explicit user confirmation. Never overwrite or delete existing files.
+- Native inference is a later step: merge/export the adapter to GGUF, test it with a pinned llama.cpp version, and then integrate the runtime into the C/C++ application.
