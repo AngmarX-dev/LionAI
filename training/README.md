@@ -14,13 +14,18 @@ The repository includes `.github/workflows/download-model.yml`. To run it:
 4. Wait for the `download-model` job to finish successfully.
 5. Open that workflow run's **Artifacts** section and download `lionai-qwen2.5-0.5b-instruct`.
 
-The workflow downloads the model from the official Hugging Face repository, checks that the configuration and SafeTensors weights exist, and publishes them as a GitHub Actions artifact for 7 days. It also caches the downloaded files between compatible workflow runs. The large model weights are deliberately not committed to Git.
-
-After extracting the artifact into the repository root, the model directory should be:
+The workflow downloads the model from the official Hugging Face repository into a dedicated folder, `models/Qwen2.5-0.5B-Instruct/`. It verifies the configuration and SafeTensors weights, then uploads the parent `models/` directory so the artifact preserves this folder structure:
 
 ```text
-models/Qwen2.5-0.5B-Instruct/
+lionai-qwen2.5-0.5b-instruct.zip
+└── Qwen2.5-0.5B-Instruct/
+    ├── config.json
+    ├── model.safetensors
+    ├── tokenizer.json
+    └── ...
 ```
+
+After extracting the artifact's `Qwen2.5-0.5B-Instruct/` folder into the repository's `models/` directory, the model path will be `models/Qwen2.5-0.5B-Instruct/`. The artifact is retained for 7 days. GitHub Actions also caches the downloaded files between compatible runs. The large model weights are deliberately not committed to Git.
 
 Then pass that local directory to the training script with `--model` (see below). The model download workflow only downloads and packages the base model; it does not start training automatically.
 
