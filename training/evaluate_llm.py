@@ -1,27 +1,109 @@
 #!/usr/bin/env python3
-"""Generate predictions on the deterministic held-out split and score them."""
+"""Schema-aware, deterministic evaluation for LionAI's JSON-only file proposals."""
 from __future__ import annotations
-import argparse, json, re
+
+import argparse
+import json
+import os
+import re
+from collections import Counter
 from pathlib import Path
+
+import torch
 from datasets import Dataset
 from peft import PeftModel
-import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-def words(text: str) -> list[str]:
-    return re.findall(r"[\w.\-/]+", text.casefold(), flags=re.UNICODE)
 
-def f1_score(prediction: str, reference: str) -> float:
-    from collections import Counter
-    p, r = Counter(words(prediction)), Counter(words(reference))
-    overlap = sum((p & r).values())
-    if not p or not r or not overlap:
-        return 0.0
-    precision, recall = overlap / sum(p.values()), overlap / sum(r.values())
-    return 2 * precision * recall / (precision + recall)
+def parse_json_object(text: str) -> dict | None:
+    candidate = text.strip()
+    candidate = re.sub(r"^\`\`\`(?:json)?\\s*|\\s*\`\`\`$", "", candidate, flags=re.IGNORECASE)
+    try:
+        value = json.loads(candidate)
+        return value if isinstance(value, dict) else None
+    except json.JSONDecodeError:
+        start, end = candidate.find("{"), candidate.rfind("}")
+        if start < 0 or end <= start:
+            return None
+        try:
+            value = json.loads(candidate[start:end + 1])
+            return value if isinstance(value, dict) else None
+        except json.JSONDecodeError:
+            return None
 
-def normalize(text: str) -> str:
-    return " ".join(words(text))
+
+def safe_relative_path(value: object) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    path = Path(value)
+    return not path.is_absolute() and ".." not in path.parts and "\\\\" not in value
+
+
+def score_prediction(prediction: str, reference_text: str, input_text: str) -> dict:
+    predicted = parse_json_object(prediction)
+    reference = json.loads(reference_text)
+    input_names = [x.strip() for x in input_text.split("files=", 1)[-1].split(",") if x.strip()]
+    result = {
+        "valid_json": predicted is not None,
+        "valid_schema": False,
+        "input_file_count": len(input_names),
+        "filename_coverage": 0.0,
+        "path_match_rate": 0.0,
+        "extension_preservation_rate": 0.0,
+        "safe_paths": False,
+        "needs_review_count": 0,
+        "hallucinated_names": [],
+        "missing_names": [],
+    }
+    if predicted is None:
+        return result
+
+    mappings = predicted.get("files")
+    schema_ok = (
+        predicted.get("schema_version") == "1.0"
+        and isinstance(predicted.get("folders"), list)
+        and isinstance(mappings, list)
+        and all(isinstance(x, dict) for x in mappings)
+    )
+    result["valid_schema"] = schema_ok
+    if not schema_ok:
+        return result
+
+    by_name = {}
+    for item in mappings:
+        name = item.get("original_name")
+        if isinstance(name, str) and name not in by_name:
+            by_name[name] = item
+    expected = set(input_names)
+    actual = set(by_name)
+    result["missing_names"] = sorted(expected - actual)
+    result["hallucinated_names"] = sorted(actual - expected)
+    matched = expected & actual
+    result["filename_coverage"] = len(matched) / max(1, len(expected))
+
+    ref_map = {x["original_name"]: x for x in reference.get("files", [])}
+    path_matches, ext_matches, safe_count = 0, 0, 0
+    review_count = 0
+    for name in matched:
+        item = by_name[name]
+        path = item.get("suggested_path")
+        if isinstance(item.get("needs_review"), bool) and item["needs_review"]:
+            review_count += 1
+        if safe_relative_path(path):
+            safe_count += 1
+        if path == ref_map.get(name, {}).get("suggested_path"):
+            path_matches += 1
+        predicted_ext = Path(name).suffix.casefold()
+        path_name = Path(path).name if isinstance(path, str) else ""
+        if Path(path_name).suffix.casefold() == predicted_ext:
+            ext_matches += 1
+    denominator = max(1, len(matched))
+    result["path_match_rate"] = path_matches / max(1, len(expected))
+    result["extension_preservation_rate"] = ext_matches / denominator
+    result["safe_paths"] = safe_count == len(matched) and len(matched) > 0
+    result["needs_review_count"] = review_count
+    return result
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -29,17 +111,19 @@ def main() -> int:
     ap.add_argument("--adapter", required=True)
     ap.add_argument("--data", default="training/lionai_sft.jsonl")
     ap.add_argument("--output", default="artifacts/evaluation")
-    ap.add_argument("--max-new-tokens", type=int, default=180)
+    ap.add_argument("--max-new-tokens", type=int, default=220)
     args = ap.parse_args()
 
     rows = [json.loads(x) for x in Path(args.data).read_text(encoding="utf-8").splitlines() if x.strip()]
     if len(rows) < 10:
         raise ValueError("Need at least 10 examples for held-out evaluation.")
-    split = Dataset.from_list(rows).train_test_split(test_size=0.1, seed=42)
-    heldout = list(split["test"])
-    torch.set_num_threads(max(1, min(4, os.cpu_count() or 1))) if False else None
+    heldout = list(Dataset.from_list(rows).train_test_split(test_size=0.1, seed=42)["test"])
+
+    torch.set_num_threads(max(1, min(4, os.cpu_count() or 1)))
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.float32, low_cpu_mem_usage=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model, torch_dtype=torch.float32, low_cpu_mem_usage=True
+    )
     model = PeftModel.from_pretrained(model, args.adapter)
     model.eval()
 
@@ -53,31 +137,51 @@ def main() -> int:
         inputs = tokenizer(prompt, return_tensors="pt", add_special_tokens=False)
         with torch.inference_mode():
             generated = model.generate(
-                **inputs, max_new_tokens=args.max_new_tokens, do_sample=False,
-                pad_token_id=tokenizer.eos_token_id, eos_token_id=tokenizer.eos_token_id,
+                **inputs,
+                max_new_tokens=args.max_new_tokens,
+                do_sample=False,
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=tokenizer.eos_token_id,
             )
-        answer = tokenizer.decode(generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
+        answer = tokenizer.decode(
+            generated[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True
+        ).strip()
         reference = row["output"].strip()
+        metrics = score_prediction(answer, reference, row["input"])
         results.append({
-            "case": index, "input": row["input"], "reference": reference,
-            "prediction": answer, "exact_match": normalize(answer) == normalize(reference),
-            "token_f1": round(f1_score(answer, reference), 4),
+            "case": index,
+            "input": row["input"],
+            "prediction": answer,
+            "reference": reference,
+            **metrics,
         })
 
     count = len(results)
+    averages = {}
+    for key in ("valid_json", "valid_schema", "filename_coverage", "path_match_rate",
+                "extension_preservation_rate", "safe_paths"):
+        averages[key] = round(
+            sum(float(item[key]) for item in results) / count, 4
+        )
     summary = {
-        "model": args.model, "adapter": args.adapter, "evaluation_examples": count,
-        "exact_match_accuracy": round(sum(x["exact_match"] for x in results) / count, 4),
-        "mean_token_f1": round(sum(x["token_f1"] for x in results) / count, 4),
-        "scoring_note": "Token-overlap F1 is a rough lexical metric, not semantic correctness. Review predictions manually.",
+        "model": args.model,
+        "adapter": args.adapter,
+        "evaluation_examples": count,
+        "metrics": averages,
+        "warning": (
+            "The held-out set is small; these results are diagnostic, not a reliable "
+            "generalization-accuracy estimate. Path match is exact against the reference."
+        ),
         "results": results,
     }
     out = Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "generation_metrics.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / "generation_metrics.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 
+
 if __name__ == "__main__":
-    import os
     raise SystemExit(main())
