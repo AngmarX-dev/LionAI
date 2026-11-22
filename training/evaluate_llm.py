@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import re
-from collections import Counter
 from pathlib import Path
 
 import torch
@@ -37,7 +36,7 @@ def safe_relative_path(value: object) -> bool:
     if not isinstance(value, str) or not value.strip():
         return False
     path = Path(value)
-    return not path.is_absolute() and ".." not in path.parts and "\\\\" not in value
+    return not path.is_absolute() and ".." not in path.parts and "\\" not in value
 
 
 def score_prediction(prediction: str, reference_text: str, input_text: str) -> dict:
