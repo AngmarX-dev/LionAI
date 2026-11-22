@@ -249,6 +249,7 @@ static int build_unique_name(char *out, size_t cap, const char *folder,
 
 static int organize_directory(const char *root, const char *topic, int apply) {
     unsigned long planned = 0, moved = 0, skipped = 0;
+    unsigned int next_index[GROUP_COUNT] = {0};
 #ifdef _WIN32
     char pattern[MAX_PATH_LEN];
     WIN32_FIND_DATAA data;
@@ -273,7 +274,7 @@ static int organize_directory(const char *root, const char *topic, int apply) {
         if (!path_join(source, sizeof(source), root, data.cFileName) ||
             !path_join(target_dir, sizeof(target_dir), root, groups[group].folder) ||
             !build_unique_name(target, sizeof(target), target_dir,
-                               groups[group].name, ext, 1)) {
+                               groups[group].name, ext, ++next_index[group])) {
             ++skipped;
             continue;
         }
