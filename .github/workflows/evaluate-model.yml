@@ -1,14 +1,16 @@
 name: Evaluate LionAI LLM
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Train LionAI LLM"]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'training/evaluate_llm.py'
-      - 'training/lionai_eval.jsonl'
-      - 'training/validate_dataset.py'
-      - '.github/workflows/evaluate-model.yml'
   workflow_dispatch:
+    inputs:
+      training_run_id:
+        description: "Successful Train LionAI LLM workflow run ID"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,22 +18,23 @@ permissions:
 
 jobs:
   evaluate:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - name: Check out main and retrieve base model
+      - name: Check out the exact training revision
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           lfs: true
 
-      - name: Download the successful LoRA training artifact
+      - name: Download the adapter from this exact training run
         uses: actions/download-artifact@v4
         with:
           name: lionai-qwen2.5-0.5b-lora-cpu
           path: artifacts/lora
           repository: AngmarX-dev/LionAI
-          run-id: 45039122377
+          run-id: ${{ github.event.workflow_run.id || inputs.training_run_id }}
           github-token: ${{ github.token }}
 
       - name: Set up Python
@@ -47,7 +50,7 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.3.0"
           python -m pip install -r training/requirements.txt
 
-      - name: Validate training and independent evaluation datasets
+      - name: Validate both datasets
         run: python training/validate_dataset.py training/lionai_sft.jsonl training/lionai_eval.jsonl
 
       - name: Run deterministic independent generation evaluation
