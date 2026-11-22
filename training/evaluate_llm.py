@@ -17,7 +17,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def parse_json_object(text: str) -> dict | None:
     candidate = text.strip()
-    candidate = re.sub(r"^\`\`\`(?:json)?\\s*|\\s*\`\`\`$", "", candidate, flags=re.IGNORECASE)
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```(?:json)?\s*", "", candidate, flags=re.IGNORECASE)
+        candidate = re.sub(r"\s*```$", "", candidate)
     try:
         value = json.loads(candidate)
         return value if isinstance(value, dict) else None
