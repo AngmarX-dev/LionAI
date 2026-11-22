@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'training/evaluate_llm.py'
+      - 'training/lionai_eval.jsonl'
+      - 'training/validate_dataset.py'
       - '.github/workflows/evaluate-model.yml'
   workflow_dispatch:
 
@@ -45,7 +47,10 @@ jobs:
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.3.0"
           python -m pip install -r training/requirements.txt
 
-      - name: Run deterministic held-out generation evaluation
+      - name: Validate training and independent evaluation datasets
+        run: python training/validate_dataset.py training/lionai_sft.jsonl training/lionai_eval.jsonl
+
+      - name: Run deterministic independent generation evaluation
         env:
           TOKENIZERS_PARALLELISM: "false"
           OMP_NUM_THREADS: "4"
@@ -55,7 +60,7 @@ jobs:
           python training/evaluate_llm.py \
             --model models/Qwen2.5-0.5B-Instruct \
             --adapter artifacts/lora/adapter \
-            --data training/lionai_sft.jsonl \
+            --data training/lionai_eval.jsonl \
             --output artifacts/evaluation
 
       - name: Upload predictions and evaluation metrics
