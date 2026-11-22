@@ -1,0 +1,88 @@
+name: Train LionAI Qwen3-1.7B (QLoRA)
+
+on:
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: "Fine-tuning epochs"
+        required: true
+        default: "3"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lionai-qwen3-1.7b-training
+  cancel-in-progress: false
+
+jobs:
+  train:
+    # Requires a user-managed Linux CUDA GPU runner with at least 5.5 GiB VRAM.
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 720
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Qwen3 download and QLoRA dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r training/requirements-qwen3.txt
+
+      - name: Download Qwen3-1.7B into models/Qwen3-1.7B
+        run: python training/download_model.py --model Qwen/Qwen3-1.7B --destination models/Qwen3-1.7B
+
+      - name: Validate training and held-out datasets
+        run: python training/validate_dataset.py training/lionai_sft.jsonl training/lionai_eval.jsonl
+
+      - name: Fine-tune Qwen3-1.7B with 4-bit QLoRA
+        env:
+          TOKENIZERS_PARALLELISM: "false"
+          PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+        run: |
+          python training/train_qwen3_qlora.py \
+            --model models/Qwen3-1.7B \
+            --data training/lionai_sft.jsonl \
+            --output artifacts/lionai-qwen3-1.7b-qlora \
+            --epochs "${{ inputs.epochs || 3 }}"
+
+      - name: Run independent Qwen3-1.7B held-out evaluation
+        env:
+          TOKENIZERS_PARALLELISM: "false"
+          PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+        run: |
+          python training/evaluate_qwen3.py \
+            --model models/Qwen3-1.7B \
+            --adapter artifacts/lionai-qwen3-1.7b-qlora/adapter \
+            --data training/lionai_eval.jsonl \
+            --output artifacts/lionai-qwen3-1.7b-evaluation
+
+      - name: Verify adapter output
+        run: |
+          test -s artifacts/lionai-qwen3-1.7b-qlora/adapter/adapter_config.json
+          test -s artifacts/lionai-qwen3-1.7b-qlora/adapter/adapter_model.safetensors
+          test -s artifacts/lionai-qwen3-1.7b-qlora/metrics.json
+          python -m json.tool artifacts/lionai-qwen3-1.7b-qlora/metrics.json
+
+      - name: Upload Qwen3-1.7B evaluation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lionai-qwen3-1.7b-evaluation
+          path: artifacts/lionai-qwen3-1.7b-evaluation/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Qwen3-1.7B adapter
+        uses: actions/upload-artifact@v4
+        with:
+          name: lionai-qwen3-1.7b-qlora
+          path: artifacts/lionai-qwen3-1.7b-qlora/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
