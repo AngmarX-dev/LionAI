@@ -30,39 +30,27 @@ Training uses CUDA when available and otherwise CPU. A completed training run do
 
 The project uses the official Hugging Face Datasets library (https://github.com/huggingface/datasets) to load and normalize external metadata datasets. The library is a data-loading/processing toolkit, **not itself a training dataset**. LionAI installs the released Python package from PyPI; it does not clone or vendor the full library source tree.
 
-A first supplemental source is Smart Downloads Organiser Metadata (https://huggingface.co/datasets/AnodemTheGr8t/file_organiser_metadata). Its card describes synthetic English metadata such as filename, extension, folder hint, size, and a seven-class label, and declares CC0-1.0. Its card and viewer have reported different row counts, so the importer reports the actual loaded count rather than assuming one.
+A first supplemental source is Smart Downloads Organiser Metadata (https://huggingface.co/datasets/AnodemTheGr8t/file_organiser_metadata). Its card describes synthetic English metadata such as filename, extension, folder hint, size, and a seven-class label, and declares CC0-1.0. Its card and viewer have reported different row counts, so the importer reports the actual loaded count.
 
-    python -m pip install -r training/requirements-scratch.txt
     python training/import_hf_dataset.py
     # Optional bounded streaming import:
     python training/import_hf_dataset.py --max-rows 5000
 
-The importer:
-- loads records through datasets.load_dataset with remote dataset code execution explicitly disabled;
-- can use streaming mode with --max-rows to bound the import;
-- reads metadata fields only, never file contents;
-- maps the source's seven labels to LionAI's 13 classes conservatively;
-- rejects path-like filenames, control characters and oversized topics;
-- skips exact duplicate metadata rows but rejects conflicting labels for the same topic/filename;
-- writes a local supplemental file to training/external/ (not committed by the importer).
+The importer loads metadata with remote code execution disabled, validates plain filenames, maps source labels to LionAI classes, deduplicates rows, and writes to ignored local directory training/external/. Imported data remains supplemental until reviewed.
 
-**Important:** imported rows are supplemental, not yet merged into the official train/evaluation split. The source is synthetic, English-only, and its labels are largely extension-derived. Its folder_hint becomes the topic field, so group leakage and class coverage must be audited before combining it with LionAI's topic-disjoint data.
+## Build a metadata corpus
 
-For a reproducible import, pass a specific Hugging Face dataset commit hash with --revision instead of relying on the moving main revision.
+After importing a source and preparing any additional compatible LionAI JSONL metadata files, merge and audit them:
 
-## Repository components
+    python training/build_metadata_corpus.py \
+      --input training/external/lionai_file_organiser_metadata.jsonl \
+      --input training/my_curated_metadata.jsonl
 
-- lionai.c: native organizer and experimental baseline.
-- lionai.py: optional launcher for the native executable.
-- lionai_hybrid.py: metadata-only preview engine; never reads or moves files.
-- lionai_scratch.py: custom tokenizer and randomly initialized Transformer.
-- training/train_scratch.py: topic-disjoint training split, validation-based checkpoint selection, scheduler, early stopping, and atomic checkpoint output.
-- training/predict_scratch.py: metadata-only inference with confidence and ambiguity review.
-- training/evaluate_scratch.py: per-class precision/recall/F1, confusion matrix, ECE, and Brier score.
-- training/calibrate_scratch.py and training/calibration.py: optional temperature calibration using a dedicated calibration split.
-- training/audit_scratch_data.py: schema, class coverage, duplicates, filename/extension consistency, and topic-leakage audit.
-- training/import_hf_dataset.py: Hugging Face metadata import and 7-to-13-class mapping.
-- tests/: unit and safety-contract tests.
+The builder writes training/external/lionai_metadata_corpus.jsonl and a class/source report. It skips identical topic/filename duplicates and rejects conflicting labels. It does **not** split or train on the result automatically.
+
+Keep all records for a normalized topic together when creating train, validation, calibration, and test sets. Never split randomly by row: that can leak near-identical topic context across splits. The report highlights missing and underrepresented classes; resolve those gaps with curated examples before training. The external source is synthetic and English-only, so it is not a production benchmark by itself.
+
+For reproducible Hugging Face imports, pin --revision to a dataset commit hash rather than the moving main branch.
 
 ## Safety requirements
 
