@@ -42,7 +42,7 @@ jobs:
             --output training/external/lionai_file_organiser_metadata.jsonl
       - name: Import real-world public GitHub filename metadata
         env:
-          GITHUB_TOKEN: \${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python training/import_github_metadata.py \
             --max-files-per-repo 1500 \
