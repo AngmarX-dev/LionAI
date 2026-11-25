@@ -33,3 +33,8 @@ python -m unittest discover -s tests -p 'test_lionai_gguf_runtime.py' -v
 ```
 
 The tests write a tiny temporary GGUF fixture and verify that inference logits after GGUF reload exactly match the original PyTorch model.
+
+
+## Hybrid decision layer
+
+The runtime applies a conservative extension rule only for high-precision, unambiguous suffixes (for example, `.jpg` and `.png`). Ambiguous suffixes such as `.json`, `.sql`, `.html`, and `.ts` remain model-only. The JSON result preserves `raw_top_category`, exposes `suggested_category`, and records `decision_source` and `rule_override`. If a rule conflicts with the Transformer, the result remains `Other/Review` with `needs_review=true`; the suggestion is not silently treated as a confirmed classification.
