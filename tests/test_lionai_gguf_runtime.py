@@ -126,7 +126,8 @@ class LionAIGGUFTests(unittest.TestCase):
             path = Path(directory) / "fixture.gguf"
             _write_test_gguf(path, model, [f"class-{i}" for i in range(config.num_classes)], config)
             result = predict_gguf("photography", "summer.jpg", path, device="cpu")
-        self.assertEqual(result["predicted_category"], "Images")
+        self.assertEqual(result["predicted_category"], "Other/Review")
+        self.assertEqual(result["suggested_category"], "Images")
         self.assertEqual(result["rule_category"], "Images")
         self.assertEqual(result["decision_source"], "extension_rule")
         self.assertTrue(result["rule_override"])
