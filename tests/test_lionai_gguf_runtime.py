@@ -25,6 +25,10 @@ def _meta_u32(key: str, value: int) -> bytes:
     return _string(key) + struct.pack("<II", 4, value)
 
 
+def _meta_float(key: str, value: float) -> bytes:
+    return _string(key) + struct.pack("<If", 6, value)
+
+
 def _meta_string_array(key: str, values: list[str]) -> bytes:
     return (_string(key) + struct.pack("<IIQ", 9, 8, len(values))
             + b"".join(_string(value) for value in values))
@@ -42,6 +46,7 @@ def _write_test_gguf(path: Path, model, labels: list[str], config: LionAIConfig)
         _meta_u32("lionai.n_layers", config.n_layers),
         _meta_u32("lionai.feedforward", config.feedforward),
         _meta_u32("lionai.max_length", config.max_length),
+        _meta_float("lionai.dropout", config.dropout),
         _meta_u32("lionai.num_classes", config.num_classes),
         _meta_string_array("lionai.labels", labels),
     ]
