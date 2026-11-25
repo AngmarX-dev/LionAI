@@ -146,6 +146,7 @@ def load_gguf_model(path: str | Path, device: str | torch.device = "cpu"):
         feedforward=int(metadata["lionai.feedforward"]),
         max_length=int(metadata["lionai.max_length"]),
         num_classes=int(metadata["lionai.num_classes"]),
+        dropout=float(metadata.get("lionai.dropout", 0.25)),
     )
     labels = metadata.get("lionai.labels")
     if not isinstance(labels, list) or len(labels) != config.num_classes or not all(isinstance(x, str) for x in labels):
@@ -211,7 +212,7 @@ def predict_gguf(topic: str, filename: str, model_path: str | Path,
         or rule_override
     )
     return {
-        "model": "lionai-scratch-transformer-v1",
+        "model": str(metadata.get("lionai.model", metadata.get("general.name", "lionai-scratch-transformer-custom"))),
         "format": "GGUF v3 / F32",
         "topic": topic,
         "filename": filename,
