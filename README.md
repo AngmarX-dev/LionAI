@@ -39,7 +39,8 @@ The training script uses CUDA when available and otherwise falls back to CPU. St
 - `training/train_scratch.py`: supervised training pipeline with a topic-disjoint validation split (examples sharing a topic stay in the same split).
 - `training/predict_scratch.py`: safe local inference; emits a category and confidence only, never a destination path or filesystem action.
 - `training/evaluate_scratch.py`: independent evaluation with per-class precision/recall/F1 and a confusion matrix; rejects topic overlap with the training set.
-- `training/audit_scratch_data.py`: audits dataset schemas, class coverage, duplicate samples, plain filenames and train/evaluation topic separation.
+- `training/audit_scratch_data.py`: audits dataset schemas, class coverage, duplicate samples in both datasets, filename/extension consistency, plain filenames and train/evaluation topic separation.
+- `training/train_scratch.py` now uses the same strict dataset loader and a deterministic topic-disjoint split that keeps every class in both partitions.
 - `training/lionai_scratch_eval.jsonl`: a small topic-disjoint starter evaluation set (26 synthetic metadata examples; not a production benchmark).
 - `tests/test_lionai_scratch_evaluation.py`: validates evaluation data boundaries and metadata-only schema.
 - `tests/test_lionai_scratch_inference.py`: verifies the inference safety contract.
