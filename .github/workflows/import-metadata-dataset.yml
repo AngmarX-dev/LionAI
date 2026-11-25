@@ -1,0 +1,50 @@
+name: LionAI metadata dataset import
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_rows:
+        description: "Maximum rows to import (0 = all available rows)"
+        required: false
+        default: "0"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  import-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dataset loader
+        run: python -m pip install --upgrade pip "datasets>=3.0.0,<6.0.0"
+      - name: Import metadata-only dataset
+        run: |
+          python training/import_hf_dataset.py \
+            --dataset AnodemTheGr8t/file_organiser_metadata \
+            --split train \
+            --revision main \
+            --max-rows "${{ inputs.max_rows }}" \
+            --output training/external/lionai_file_organiser_metadata.jsonl
+      - name: Audit imported metadata
+        run: |
+          python training/build_metadata_corpus.py \
+            --input training/external/lionai_file_organiser_metadata.jsonl \
+            --output training/external/lionai_metadata_corpus.jsonl \
+            --report training/external/lionai_metadata_corpus_report.json
+      - name: Upload imported dataset and audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lionai-metadata-dataset
+          path: |
+            training/external/lionai_file_organiser_metadata.jsonl
+            training/external/lionai_metadata_corpus.jsonl
+            training/external/lionai_metadata_corpus_report.json
+          if-no-files-found: error
+          retention-days: 14
