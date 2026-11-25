@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from collections import Counter
+from itertools import islice
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 DEFAULT_DATASET = "AnodemTheGr8t/file_organiser_metadata"
 LABELS = {
@@ -92,6 +92,8 @@ def normalize_record(record: dict[str, Any], row_number: int) -> dict[str, str]:
     topic = str(folder_hint).strip() if folder_hint is not None else ""
     if not topic:
         topic = "Downloads"
+    if len(topic) > 200 or any(ord(char) < 32 for char in topic):
+        raise ValueError(f"row {row_number}: folder_hint must be at most 200 characters without control characters")
     label = map_label(record["label"], extension)
     if label not in LABELS:
         raise ValueError(f"row {row_number}: mapped label is invalid")
@@ -103,18 +105,24 @@ def normalize_record(record: dict[str, Any], row_number: int) -> dict[str, str]:
     }
 
 
-def convert_records(records: Any) -> tuple[list[dict[str, str]], dict[str, int]]:
+def convert_records(records: Iterable[dict[str, Any]]) -> tuple[list[dict[str, str]], dict[str, int]]:
     converted: list[dict[str, str]] = []
-    seen: set[tuple[str, str]] = set()
+    seen: dict[tuple[str, str], str] = {}
     counts: Counter[str] = Counter()
     duplicates = 0
     for index, record in enumerate(records, 1):
         row = normalize_record(dict(record), index)
         key = (row["topic"].casefold(), row["filename"].casefold())
-        if key in seen:
+        previous_label = seen.get(key)
+        if previous_label is not None:
+            if previous_label != row["label"]:
+                raise ValueError(
+                    f"row {index}: conflicting labels for duplicate topic/filename "
+                    f"({previous_label!r} vs {row['label']!r})"
+                )
             duplicates += 1
             continue
-        seen.add(key)
+        seen[key] = row["label"]
         converted.append(row)
         counts[row["label"]] += 1
     report = {label: counts.get(label, 0) for label in sorted(LABELS)}
@@ -127,11 +135,14 @@ def main() -> int:
     parser.add_argument("--dataset", default=DEFAULT_DATASET, help="Hugging Face dataset repository ID")
     parser.add_argument("--split", default="train")
     parser.add_argument("--revision", default="main", help="Pin this to a commit hash for reproducible imports")
+    parser.add_argument("--max-rows", type=int, default=0, help="Optional positive limit; uses streaming mode")
     parser.add_argument(
         "--output",
         default="training/external/lionai_file_organiser_metadata.jsonl",
     )
     args = parser.parse_args()
+    if args.max_rows < 0:
+        parser.error("--max-rows must be zero (unlimited) or a positive integer")
 
     try:
         from datasets import load_dataset
@@ -140,29 +151,42 @@ def main() -> int:
             "Missing dependency. Install with: python -m pip install -r training/requirements-scratch.txt"
         ) from exc
 
-    dataset = load_dataset(args.dataset, split=args.split, revision=args.revision)
-    rows, counts = convert_records(dataset)
+    dataset = load_dataset(
+        args.dataset,
+        split=args.split,
+        revision=args.revision,
+        trust_remote_code=False,
+        streaming=bool(args.max_rows),
+    )
+    records = islice(dataset, args.max_rows) if args.max_rows else dataset
+    rows, counts = convert_records(records)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = output.with_suffix(output.suffix + ".tmp")
-    with temporary.open("w", encoding="utf-8", newline="\n") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-    temporary.replace(output)
+    try:
+        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+            for row in rows:
+                handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+        temporary.replace(output)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
     print(json.dumps({
         "source_dataset": args.dataset,
         "revision": args.revision,
         "split": args.split,
+        "max_rows": args.max_rows or None,
         "rows_written": len(rows),
         "output": str(output),
         "mapped_class_counts": counts,
         "metadata_only": True,
+        "remote_code_execution": False,
         "source_license": "CC0-1.0 (verify the dataset card before redistribution)",
         "warning": (
-            "This 670-row synthetic English dataset is supplemental only. "
-            "Its folder_hint values become topic metadata; do not merge it into the "
-            "official topic-disjoint split until group leakage and class coverage are audited."
+            "This synthetic English dataset is supplemental only. Its folder_hint values "
+            "become topic metadata; do not merge it into the official topic-disjoint split "
+            "until group leakage and class coverage are audited."
         ),
     }, ensure_ascii=False, indent=2))
     return 0
