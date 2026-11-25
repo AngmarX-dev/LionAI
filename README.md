@@ -26,12 +26,23 @@ The BF16 checkpoint is roughly 3.4 GB; reserve additional disk space for the dow
 ## Current implementation status
 
 - `lionai.c`: existing native organizer and experimental Naive Bayes baseline; it is not the Qwen3 model.
+- `lionai_hybrid.py`: metadata-only hybrid proposal engine with deterministic classification and a strictly validated optional language-model hook. It creates previews only; it never reads or moves files.
 - `lionai.py`: optional launcher for the native C executable.
 - `training/download_model.py`: downloads and verifies Qwen3-1.7B.
 - `training/train_qwen3_qlora.py`: trains only LoRA adapters; base model weights remain frozen.
 - `training/lionai_sft.jsonl`: starter fine-tuning data.
 - **LLM inference is not yet integrated into the native `organize` command.**
 - GGUF export, quantization, native runtime integration, and LionOS integration remain future steps.
+
+## Hybrid engine (first implementation milestone)
+
+Run a metadata-only preview without loading a language model:
+
+```bash
+python lionai_hybrid.py --topic "Family photos" --files IMG_1023.jpg beach_trip.png notes.txt
+```
+
+The engine combines extension rules and filename semantics. An optional model proposer can refine destinations, but it receives filenames/extensions only; unsafe paths, low-confidence suggestions, malformed mappings, and collisions are rejected or sent to review. Run tests with `python -m unittest discover -s tests -v`.
 
 ## Safety and limitations
 
