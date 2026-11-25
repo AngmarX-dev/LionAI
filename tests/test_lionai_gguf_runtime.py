@@ -85,9 +85,11 @@ class LionAIGGUFTests(unittest.TestCase):
                 expected = original(ids, mask)
                 actual = restored(ids, mask)
             self.assertEqual(labels, restored_labels)
+            for name, tensor in original.state_dict().items():
+                torch.testing.assert_close(restored.state_dict()[name], tensor, rtol=0, atol=0)
             self.assertTrue(torch.isfinite(expected).all().item())
             self.assertTrue(torch.isfinite(actual).all().item())
-            torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+            torch.testing.assert_close(actual, expected, rtol=1e-5, atol=1e-6)
 
     def test_predict_returns_metadata_only_safety_contract(self):
         torch.manual_seed(1234)
