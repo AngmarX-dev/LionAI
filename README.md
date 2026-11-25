@@ -20,16 +20,21 @@ python -m venv .venv
 # Linux: source .venv/bin/activate
 python -m pip install -r training/requirements-scratch.txt
 python training/train_scratch.py --epochs 30
+
+# After a local training run, classify one filename (metadata only):
+python training/predict_scratch.py --topic "مدارک مدرسه" --filename "biology_notes.pdf"
 ```
 
-The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset, create a topic-disjoint held-out test set, and evaluate per-class precision/recall before enabling model predictions in the organizer.
+The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset and evaluate on a separate, topic-disjoint test set with per-class precision/recall before enabling model predictions in the organizer. The current validation split is a development check, not a final benchmark.
 
 ## Existing components
 
 - `lionai.c`: native organizer and experimental Naive Bayes baseline.
 - `lionai_hybrid.py`: metadata-only preview engine with deterministic classification and a strictly validated optional model hook. It never reads or moves files.
 - `lionai_scratch.py`: custom byte tokenizer and randomly initialized Transformer classifier.
-- `training/train_scratch.py`: supervised training pipeline for the from-scratch model.
+- `training/train_scratch.py`: supervised training pipeline with a topic-disjoint validation split (examples sharing a topic stay in the same split).
+- `training/predict_scratch.py`: safe local inference; emits a category and confidence only, never a destination path or filesystem action.
+- `tests/test_lionai_scratch_inference.py`: verifies the inference safety contract.
 - `training/lionai_scratch_train.jsonl`: curated starter examples containing only topic, filename, extension and label.
 - `training/download_model.py` and `training/train_qwen3_qlora.py`: legacy Qwen experiment scripts; they are not used by the selected from-scratch architecture.
 - Native inference integration, model calibration, independent evaluation, and safe apply/rollback remain future work.
