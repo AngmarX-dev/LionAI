@@ -15,6 +15,15 @@ class HuggingFaceImportTests(unittest.TestCase):
         self.assertEqual(map_label("other", "sqlite"), "Databases")
         self.assertEqual(map_label("other", "unknown"), "Other/Review")
 
+    def test_compound_extension_is_preserved(self):
+        row = normalize_record({
+            "file_name": "backup.tar.gz",
+            "extension": "tar.gz",
+            "folder_hint": "Backups",
+            "label": "archives",
+        }, 1)
+        self.assertEqual(row["extension"], "tar.gz")
+
     def test_record_uses_only_metadata_and_plain_filename(self):
         row = normalize_record({
             "file_name": "notes.pdf",
