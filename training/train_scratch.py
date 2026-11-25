@@ -69,20 +69,37 @@ def main():
         if row["label"] not in LABEL_TO_ID:
             raise ValueError(f"Unknown label: {row['label']}")
 
-    # Keep every example from a topic in the same split to reduce topic leakage.
+    # Keep every example from a topic together, while ensuring each class appears in both splits.
     topic_groups = {}
     for row in rows:
         topic_groups.setdefault(row["topic"].casefold().strip(), []).append(row)
-    topics = sorted(topic_groups)
-    if len(topics) < 5:
-        raise SystemExit("At least five distinct topics are required for a topic-disjoint validation split.")
-    random.Random(args.seed).shuffle(topics)
-    validation_topic_count = max(1, min(len(topics) - 1, round(len(topics) * 0.2)))
-    validation_topics = set(topics[:validation_topic_count])
+    topics_by_label = {label: [] for label in LABELS}
+    for topic, group in topic_groups.items():
+        for label in {row["label"] for row in group}:
+            topics_by_label[label].append(topic)
+    for label, topics_for_label in topics_by_label.items():
+        if len(topics_for_label) < 2:
+            raise SystemExit(f"At least two distinct topics are required for class {label!r}.")
+    rng = random.Random(args.seed)
+    validation_topics = set()
+    for label in LABELS:
+        candidates = topics_by_label[label][:]
+        rng.shuffle(candidates)
+        validation_topics.add(candidates[0])
+    all_topics = list(topic_groups)
+    rng.shuffle(all_topics)
+    target_validation_topics = max(len(validation_topics), min(len(all_topics) - 1, round(len(all_topics) * 0.2)))
+    for topic in all_topics:
+        if len(validation_topics) >= target_validation_topics:
+            break
+        validation_topics.add(topic)
     train_rows = [row for topic, group in topic_groups.items() if topic not in validation_topics for row in group]
     valid_rows = [row for topic, group in topic_groups.items() if topic in validation_topics for row in group]
-    if not train_rows or not valid_rows:
-        raise SystemExit("Could not create non-empty topic-disjoint train/validation splits.")
+    train_labels = {row["label"] for row in train_rows}
+    valid_labels = {row["label"] for row in valid_rows}
+    missing = set(LABELS) - train_labels | (set(LABELS) - valid_labels)
+    if missing:
+        raise SystemExit("Every class must occur in both train and validation splits; missing: " + ", ".join(sorted(missing)))
     print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={len(validation_topics)}")
     tokenizer = LionAITokenizer()
     train_loader = DataLoader(MetadataDataset(train_rows, tokenizer), batch_size=args.batch_size,
