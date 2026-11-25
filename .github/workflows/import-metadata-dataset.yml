@@ -38,7 +38,7 @@ jobs:
             --dataset AnodemTheGr8t/file_organiser_metadata \
             --split train \
             --revision main \
-            --max-rows "\${{ inputs.max_rows || '0' }}" \
+            --max-rows "${{ inputs.max_rows || '0' }}" \
             --output training/external/lionai_file_organiser_metadata.jsonl
       - name: Import real-world public GitHub filename metadata
         env:
