@@ -12,10 +12,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
 from training.audit_scratch_data import load_dataset
+from training.sampling import compute_sample_weights
 
 LABELS = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
           "Source", "Config", "Installers", "Fonts", "Databases", "Reports", "Other/Review"]
@@ -90,14 +91,17 @@ def main():
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--sampling-power", type=float, default=0.5,
+                        help="Class-aware sampling strength from 0 (uniform rows) to 1 (uniform classes); default 0.5 is a moderate balance.")
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--patience", type=int, default=6)
     parser.add_argument("--history-output", default="artifacts/training-history.json")
     parser.add_argument("--validation-data", default=None,
                         help="Optional independent topic-disjoint validation JSONL; when set, train on all rows in --data")
     args = parser.parse_args()
-    if args.epochs < 1 or args.batch_size < 1 or args.patience < 1 or args.learning_rate <= 0:
-        parser.error("epochs, batch-size and patience must be positive; learning-rate must be greater than zero")
+    if (args.epochs < 1 or args.batch_size < 1 or args.patience < 1
+            or args.learning_rate <= 0 or not 0 <= args.sampling_power <= 1):
+        parser.error("epochs, batch-size and patience must be positive; learning-rate must be positive; sampling-power must be in [0, 1]")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -124,9 +128,20 @@ def main():
         train_rows, valid_rows = split_by_topic(rows, args.seed)
     validation_topics = len({row["topic"].casefold().strip() for row in valid_rows})
     print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={validation_topics}")
+    print(f"class_aware_sampling_power={args.sampling_power:.2f}")
     tokenizer = LionAITokenizer()
+    sampler = None
+    shuffle = args.sampling_power == 0
+    if args.sampling_power > 0:
+        sample_weights = compute_sample_weights(train_rows, args.sampling_power)
+        sampler_generator = torch.Generator()
+        sampler_generator.manual_seed(args.seed)
+        sampler = WeightedRandomSampler(
+            sample_weights, num_samples=len(train_rows), replacement=True,
+            generator=sampler_generator,
+        )
     train_loader = DataLoader(MetadataDataset(train_rows, tokenizer), batch_size=args.batch_size,
-                              shuffle=True, collate_fn=collate)
+                              shuffle=shuffle, sampler=sampler, collate_fn=collate)
     valid_loader = DataLoader(MetadataDataset(valid_rows, tokenizer), batch_size=args.batch_size,
                               shuffle=False, collate_fn=collate)
 
@@ -142,11 +157,9 @@ def main():
     if torch.any(class_counts == 0):
         missing = [LABELS[i] for i, count in enumerate(class_counts.tolist()) if count == 0]
         raise SystemExit("Training data is missing classes: " + ", ".join(missing))
-    # Mild inverse-square-root weighting reduces domination by frequent synthetic labels
-    # without letting tiny classes produce extreme gradients.
-    class_weights = torch.sqrt(class_counts.sum() / (len(LABELS) * class_counts))
-    class_weights = class_weights / class_weights.mean()
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    # Sampling, rather than multiplying loss weights, moderates class imbalance without
+    # letting the rarest classes dominate every gradient update.
+    criterion = nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
     best_validation_loss = float("inf")
     best_accuracy = 0.0
@@ -191,6 +204,7 @@ def main():
         history_tmp.write_text(json.dumps({
             "model": "lionai-scratch-transformer-v1",
             "seed": args.seed,
+            "sampling_power": args.sampling_power,
             "initialized_from": "random",
             "history": history,
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -216,6 +230,7 @@ def main():
                 "initialized_from": "random",
                 "training_examples": len(train_rows),
                 "training_class_counts": {label: int(class_counts[i].item()) for i, label in enumerate(LABELS)},
+                "sampling_power": args.sampling_power,
                 "validation_data": args.validation_data,
                 "validation_examples": len(valid_rows),
                 "validation_loss": best_validation_loss,
