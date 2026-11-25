@@ -31,10 +31,13 @@ DATABASE_EXTENSIONS = {"db", "sqlite", "sqlite3", "sql"}
 
 def normalized_extension(filename: str, source_extension: Any) -> str:
     """Return the final suffix expected by LionAI's current metadata schema."""
+    value = str(source_extension or "").casefold().strip().lstrip(".")
+    # Preserve compound extensions such as tar.gz when source metadata agrees.
+    if value and filename.casefold().endswith("." + value):
+        return value
     suffix = Path(filename).suffix.casefold().lstrip(".")
     if suffix:
         return suffix
-    value = str(source_extension or "").casefold().strip().lstrip(".")
     return value.split(".")[-1] if value else ""
 
 
