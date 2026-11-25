@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 
-from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
+from lionai_scratch import LionAIConfig, LionAITokenizer, build_model, model_name
 from training.calibration import load_temperature
 
 CONFIDENCE_THRESHOLD = 0.75
@@ -78,7 +78,7 @@ def predict(topic: str, filename: str, checkpoint_path: str | Path,
         "temperature": round(temperature, 6),
         "calibrated": calibration_path is not None,
         "needs_review": needs_review,
-        "model": "lionai-scratch-transformer-v1",
+        "model": model_name(config),
         "safety": {
             "metadata_only": True,
             "file_contents_read": False,
