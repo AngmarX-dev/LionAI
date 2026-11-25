@@ -39,7 +39,7 @@ jobs:
             training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py \
             training/calibrate_scratch.py training/calibration.py training/audit_scratch_data.py \
             training/import_hf_dataset.py training/build_metadata_corpus.py \
-            tests/test_hf_dataset_import.py tests/test_metadata_corpus_builder.py \
+            tests/test_hf_dataset_import.py tests/test_metadata_corpus_builder.py tests/test_split_metadata_corpus.py \\
             tests/test_lionai_calibration.py tests/test_lionai_calibration_inference.py \
             tests/test_lionai_hybrid.py tests/test_lionai_scratch.py \
             tests/test_lionai_scratch_inference.py tests/test_lionai_scratch_evaluation.py \
