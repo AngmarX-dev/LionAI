@@ -1,0 +1,26 @@
+{"topic":"vacation album","filename":"coastline_2025.jpg","extension":"jpg","label":"Images"}
+{"topic":"product mockups","filename":"button_mockup.png","extension":"png","label":"Images"}
+{"topic":"university papers","filename":"history_essay.pdf","extension":"pdf","label":"Documents"}
+{"topic":"meeting notes","filename":"team_minutes.docx","extension":"docx","label":"Documents"}
+{"topic":"sensor readings","filename":"temperature_log.csv","extension":"csv","label":"Data"}
+{"topic":"experiment results","filename":"trial_results.xlsx","extension":"xlsx","label":"Data"}
+{"topic":"language recordings","filename":"lesson_04.mp3","extension":"mp3","label":"Audio"}
+{"topic":"field recordings","filename":"forest_ambience.wav","extension":"wav","label":"Audio"}
+{"topic":"travel footage","filename":"mountain_walk.mp4","extension":"mp4","label":"Video"}
+{"topic":"screen captures","filename":"tutorial_capture.webm","extension":"webm","label":"Video"}
+{"topic":"old backups","filename":"backup_2024.zip","extension":"zip","label":"Archives"}
+{"topic":"source bundles","filename":"release_bundle.7z","extension":"7z","label":"Archives"}
+{"topic":"mobile app source","filename":"activity.kt","extension":"kt","label":"Source"}
+{"topic":"backend modules","filename":"api_service.go","extension":"go","label":"Source"}
+{"topic":"deployment setup","filename":"docker-compose.yml","extension":"yml","label":"Config"}
+{"topic":"editor preferences","filename":"workspace.toml","extension":"toml","label":"Config"}
+{"topic":"desktop setup","filename":"editor_setup.msi","extension":"msi","label":"Installers"}
+{"topic":"linux packages","filename":"utility.deb","extension":"deb","label":"Installers"}
+{"topic":"brand typography","filename":"brand_regular.otf","extension":"otf","label":"Fonts"}
+{"topic":"web typography","filename":"interface.woff2","extension":"woff2","label":"Fonts"}
+{"topic":"local storage","filename":"catalog.sqlite3","extension":"sqlite3","label":"Databases"}
+{"topic":"database migration","filename":"migration_014.sql","extension":"sql","label":"Databases"}
+{"topic":"annual accounting","filename":"account_summary_2025.pdf","extension":"pdf","label":"Reports"}
+{"topic":"project status","filename":"milestone_report.docx","extension":"docx","label":"Reports"}
+{"topic":"unclassified package","filename":"payload.unknown","extension":"unknown","label":"Other/Review"}
+{"topic":"unlabeled asset","filename":"untitled_asset.bin","extension":"bin","label":"Other/Review"}
