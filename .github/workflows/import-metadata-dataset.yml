@@ -1,6 +1,11 @@
 name: LionAI metadata dataset import
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/import-metadata-dataset.yml"
   workflow_dispatch:
     inputs:
       max_rows:
