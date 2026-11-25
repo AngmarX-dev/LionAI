@@ -8,10 +8,12 @@ on:
       - ".github/workflows/import-metadata-dataset.yml"
       - "training/split_metadata_corpus.py"
       - "training/evaluate_scratch.py"
+      - "training/import_github_metadata.py"
+      - "training/github_metadata_sources.txt"
   workflow_dispatch:
     inputs:
       max_rows:
-        description: "Maximum rows to import (0 = all available rows)"
+        description: "Maximum Hugging Face rows to import (0 = all available rows)"
         required: false
         default: "0"
         type: string
@@ -22,7 +24,7 @@ permissions:
 jobs:
   import-metadata:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,19 +32,27 @@ jobs:
           python-version: "3.11"
       - name: Install dataset loader
         run: python -m pip install --upgrade pip "datasets>=3.0.0,<6.0.0"
-      - name: Import all available metadata rows
+      - name: Import all available Hugging Face metadata rows
         run: |
           python training/import_hf_dataset.py \
             --dataset AnodemTheGr8t/file_organiser_metadata \
             --split train \
             --revision main \
-            --max-rows "${{ inputs.max_rows || '0' }}" \
+            --max-rows "\${{ inputs.max_rows || '0' }}" \
             --output training/external/lionai_file_organiser_metadata.jsonl
+      - name: Import real-world public GitHub filename metadata
+        env:
+          GITHUB_TOKEN: \${{ github.token }}
+        run: |
+          python training/import_github_metadata.py \
+            --max-files-per-repo 1500 \
+            --max-repos 0
       - name: Merge and audit all metadata sources
         run: |
           python training/build_metadata_corpus.py \
             --input training/lionai_scratch_train.jsonl \
             --input training/external/lionai_file_organiser_metadata.jsonl \
+            --input training/external/lionai_github_metadata.jsonl \
             --output training/external/lionai_metadata_corpus.jsonl \
             --report training/external/lionai_metadata_corpus_report.json
       - name: Create topic-disjoint full-corpus splits
@@ -71,12 +81,14 @@ jobs:
             --test training/external/splits/test.jsonl \
             --train training/external/splits/train.jsonl \
             --output artifacts/evaluation-report.json
-      - name: Upload complete corpus, splits, model and evaluation
+      - name: Upload complete corpus, provenance, model and evaluation
         uses: actions/upload-artifact@v4
         with:
-          name: lionai-full-corpus-model-and-evaluation
+          name: lionai-real-metadata-model-and-evaluation
           path: |
             training/external/lionai_file_organiser_metadata.jsonl
+            training/external/lionai_github_metadata.jsonl
+            training/external/lionai_github_metadata_report.json
             training/external/lionai_metadata_corpus.jsonl
             training/external/lionai_metadata_corpus_report.json
             training/external/splits/
