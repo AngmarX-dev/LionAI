@@ -36,7 +36,7 @@ KEYWORD_GROUPS = {
 }
 
 def _tokens(value: str) -> set[str]:
-    return {x.casefold() for x in re.findall(r"[\w]+", value, flags=re.UNICODE)}
+    return {x.casefold() for x in re.findall(r"[^\W_]+", value, flags=re.UNICODE)}
 
 def _topic_folder(topic: str) -> str:
     chars = []
