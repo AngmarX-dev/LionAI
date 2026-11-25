@@ -21,6 +21,12 @@ Default source: AnodemTheGr8t/file_organiser_metadata. The importer uses dataset
 
 The default `--max-rows 0` imports all available rows. Pin a dataset commit hash with `--revision` for reproducibility. Downloaded corpora and trained checkpoints are not committed automatically.
 
+## Import real-world GitHub filename metadata
+
+    python training/import_github_metadata.py --max-files-per-repo 1500
+
+The source list is maintained in `training/github_metadata_sources.txt`. The collector queries only public repository metadata and recursive Git trees, accepts repositories with an allowlisted SPDX license, records the license and tree revision in a provenance report, and never fetches file blobs or contents. It samples up to 1,500 distinct basenames per repository to bound API and training costs. Each repository is one topic group so files from the same project cannot leak across train/validation/test. Labels are inferred from extensions and report-like filenames; review the source report and per-class counts because extension-based labels are weak supervision, not human annotations.
+
 ## Merge, audit, and split the maximum available corpus
 
     python training/build_metadata_corpus.py \
@@ -54,11 +60,11 @@ The test split is not used for weight selection. Report accuracy, per-class Prec
 
 ## GitHub Actions
 
-The **LionAI metadata dataset import and full-corpus training** workflow imports all available rows by default, audits the merged corpus, creates topic-disjoint splits, trains from random initialization, evaluates once on the untouched test split, and uploads the dataset, split report, model, history, and evaluation report as a 14-day artifact. The artifact keeps large generated data and model weights out of Git history.
+The **LionAI metadata dataset import and full-corpus training** workflow imports all available Hugging Face rows plus up to 1,500 metadata records per eligible GitHub repository, audits the merged corpus, creates topic-disjoint splits, trains from random initialization, evaluates once on the untouched test split, and uploads the dataset, split report, model, history, and evaluation report as a 14-day artifact. The artifact keeps large generated data and model weights out of Git history.
 
 ## Source limitations
 
-The initial source is synthetic and English-only. Its labels are largely determined by file extensions, and its `folder_hint` field becomes topic metadata. It is useful for engineering tests, but it is not a realistic production benchmark. The source card declares CC0-1.0; verify the card before redistribution. The card and viewer have shown inconsistent row counts, so always trust the importer's actual `rows_written` count.
+The Hugging Face source is synthetic and English-only. The GitHub tree source contains real public filenames from permissively licensed repositories, but is biased toward software projects and its extension-derived labels are weak supervision. Its labels are largely determined by file extensions, and its `folder_hint` field becomes topic metadata. It is useful for engineering tests, but it is not a realistic production benchmark. The source card declares CC0-1.0; verify the card before redistribution. The card and viewer have shown inconsistent row counts, so always trust the importer's actual `rows_written` count.
 
 The 13-class mapping is imbalanced: rare classes such as Reports and Databases have very few records. More samples should be added from independently licensed, relevant sources before making real-world accuracy claims.
 
