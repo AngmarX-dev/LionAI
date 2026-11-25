@@ -81,3 +81,14 @@ def build_model(config: LionAIConfig | None = None):
             return self.classifier(self.norm(pooled))
 
     return LionAITransformer()
+
+
+def model_name(config: LionAIConfig) -> str:
+    """Return a stable model identifier for checkpoint and evaluation reports."""
+    if (
+        config.d_model == 128 and config.n_heads == 4 and config.n_layers == 2
+        and config.feedforward == 384 and config.max_length == 192
+        and abs(config.dropout - 0.25) < 1e-9
+    ):
+        return "lionai-scratch-transformer-v2"
+    return "lionai-scratch-transformer-custom"
