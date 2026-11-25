@@ -38,7 +38,8 @@ jobs:
           python -m py_compile lionai_hybrid.py lionai_scratch.py \
             training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py \
             training/calibrate_scratch.py training/calibration.py training/audit_scratch_data.py \
-            training/import_hf_dataset.py tests/test_hf_dataset_import.py \
+            training/import_hf_dataset.py training/build_metadata_corpus.py \
+            tests/test_hf_dataset_import.py tests/test_metadata_corpus_builder.py \
             tests/test_lionai_calibration.py tests/test_lionai_calibration_inference.py \
             tests/test_lionai_hybrid.py tests/test_lionai_scratch.py \
             tests/test_lionai_scratch_inference.py tests/test_lionai_scratch_evaluation.py \
@@ -50,6 +51,7 @@ jobs:
           python training/evaluate_scratch.py --help
           python training/calibrate_scratch.py --help
           python training/import_hf_dataset.py --help
+          python training/build_metadata_corpus.py --help
           python training/audit_scratch_data.py
       - name: Run project tests
         run: python -m unittest discover -s tests -v
