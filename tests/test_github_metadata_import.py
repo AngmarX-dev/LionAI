@@ -33,6 +33,12 @@ class GitHubMetadataImporterTests(unittest.TestCase):
             "license": {"spdx_id": "MIT"},
             "default_branch": "main",
         }
+        branch_info = {
+            "commit": {
+                "sha": "commit123",
+                "commit": {"tree": {"sha": "abc123"}},
+            }
+        }
         tree = {
             "sha": "abc123",
             "truncated": False,
@@ -44,9 +50,9 @@ class GitHubMetadataImporterTests(unittest.TestCase):
                 {"path": "src/folder", "type": "tree", "mode": "040000"},
             ],
         }
-        with patch("training.import_github_metadata.api_get", side_effect=[repo_info, tree]) as api:
+        with patch("training.import_github_metadata.api_get", side_effect=[repo_info, branch_info, tree]) as api:
             rows, manifest = collect_repo("example/project", "token", 100)
-        self.assertEqual(api.call_count, 2)
+        self.assertEqual(api.call_count, 3)
         self.assertEqual({row["filename"] for row in rows}, {"photo.png", "report.pdf", "main.py"})
         self.assertTrue(all(row["topic"] == "github:example/project" for row in rows))
         self.assertTrue(manifest["metadata_only"])
