@@ -58,6 +58,18 @@ The splitter uses every accepted row exactly once, keeps all records sharing a n
 
 The test split is not used for weight selection. Training defaults to deterministic square-root class-aware sampling (`--sampling-power 0.5`): this reduces domination by common classes without giving the rarest classes the same total sampling mass as the largest classes. Use `--sampling-power 0` for ordinary uniform-row sampling or `1` for equal expected class mass. The sampler uses a seeded generator and replacement sampling, while validation and test distributions remain untouched. Report accuracy, per-class Precision/Recall/F1, macro F1, calibration error, Brier score, and confusion matrix. Compare the new checkpoint against the previous run on the same untouched test split; do not claim improvement unless macro F1 and rare-class recall actually improve. Do not fit temperature calibration on the final test split.
 
+## Run the GGUF model
+
+The custom `lionai` architecture is not supported by stock llama.cpp or LM Studio. Use the included PyTorch runtime with the exported GGUF v3 file:
+
+    python training/lionai_gguf_runtime.py \
+      --model ./LionAI-scratch-v1.gguf \
+      --topic "photography" \
+      --filename "summer.jpg" \
+      --device auto
+
+The runtime supports this LionAI GGUF F32 layout, validates metadata and every tensor name/shape/bounds, and uses CUDA automatically when available. It accepts only a plain filename and supplied topic metadata; it never opens the named file or performs filesystem operations. Low-confidence results are marked `Other/Review`. See [GGUF runtime documentation](GGUF_RUNTIME.md). Quantized GGUF types are not yet supported.
+
 ## GitHub Actions
 
 The **LionAI metadata dataset import and full-corpus training** workflow imports all available Hugging Face rows plus up to 1,500 metadata records per eligible GitHub repository, audits the merged corpus, creates topic-disjoint splits, trains from random initialization, evaluates once on the untouched test split, and uploads the dataset, split report, model, history, and evaluation report as a 14-day artifact. The artifact keeps large generated data and model weights out of Git history.
