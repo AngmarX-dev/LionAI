@@ -239,16 +239,16 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     temp = output.with_suffix(output.suffix + ".tmp")
     try:
-        with temp.open("w", encoding="utf-8", newline="\\n") as handle:
+        with temp.open("w", encoding="utf-8", newline="\n") as handle:
             for row in rows:
-                handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\\n")
+                handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
         temp.replace(output)
     finally:
         if temp.exists():
             temp.unlink()
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({key: value for key, value in report.items() if key != "repositories"}, ensure_ascii=False, indent=2))
     return 0
 
