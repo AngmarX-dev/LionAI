@@ -23,9 +23,12 @@ python training/train_scratch.py --epochs 30
 
 # After a local training run, classify one filename (metadata only):
 python training/predict_scratch.py --topic "مدارک مدرسه" --filename "biology_notes.pdf"
+
+# Evaluate on a separate test set; overlapping topics are rejected:
+python training/evaluate_scratch.py --test training/lionai_scratch_eval.jsonl --output artifacts/evaluation.json
 ```
 
-The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset and evaluate on a separate, topic-disjoint test set with per-class precision/recall before enabling model predictions in the organizer. The current validation split is a development check, not a final benchmark.
+The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset and evaluate on a separate, topic-disjoint test set with per-class precision/recall before enabling model predictions in the organizer. The current validation split and 26-example evaluation set are development checks, not final benchmarks.
 
 ## Existing components
 
@@ -34,6 +37,9 @@ The training script uses CUDA when available and otherwise falls back to CPU. St
 - `lionai_scratch.py`: custom byte tokenizer and randomly initialized Transformer classifier.
 - `training/train_scratch.py`: supervised training pipeline with a topic-disjoint validation split (examples sharing a topic stay in the same split).
 - `training/predict_scratch.py`: safe local inference; emits a category and confidence only, never a destination path or filesystem action.
+- `training/evaluate_scratch.py`: independent evaluation with per-class precision/recall/F1 and a confusion matrix; rejects topic overlap with the training set.
+- `training/lionai_scratch_eval.jsonl`: a small topic-disjoint starter evaluation set (26 synthetic metadata examples; not a production benchmark).
+- `tests/test_lionai_scratch_evaluation.py`: validates evaluation data boundaries and metadata-only schema.
 - `tests/test_lionai_scratch_inference.py`: verifies the inference safety contract.
 - `training/lionai_scratch_train.jsonl`: curated starter examples containing only topic, filename, extension and label.
 - `training/download_model.py` and `training/train_qwen3_qlora.py`: legacy Qwen experiment scripts; they are not used by the selected from-scratch architecture.
