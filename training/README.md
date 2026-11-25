@@ -21,6 +21,10 @@ Default source: AnodemTheGr8t/file_organiser_metadata. The importer uses dataset
 
 Pin a dataset commit hash with --revision for reproducibility. Downloaded corpora and trained checkpoints are not committed automatically.
 
+### Run the import on GitHub Actions
+
+Open the repository's **Actions** tab, select **LionAI metadata dataset import**, choose **Run workflow**, and leave `max_rows` at `0` to import the complete available split. The workflow validates and audits the converted metadata, then uploads a 14-day artifact named `lionai-metadata-dataset` containing the source JSONL, merged JSONL, and class/source report. Download that artifact from the completed workflow run. This keeps external training data out of Git history.
+
 ## Merge and audit metadata corpora
 
 Repeat --input for each compatible LionAI JSONL file:
