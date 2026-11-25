@@ -1,0 +1,31 @@
+name: LionAI hybrid engine tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lionai_hybrid.py"
+      - "tests/**"
+      - ".github/workflows/test-hybrid-engine.yml"
+  pull_request:
+    paths:
+      - "lionai_hybrid.py"
+      - "tests/**"
+      - ".github/workflows/test-hybrid-engine.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile Python modules
+        run: python -m py_compile lionai_hybrid.py tests/test_lionai_hybrid.py
+      - name: Run hybrid engine tests
+        run: python -m unittest discover -s tests -v
