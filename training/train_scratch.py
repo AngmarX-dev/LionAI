@@ -12,10 +12,48 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
+from training.audit_scratch_data import load_dataset
 
 LABELS = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
           "Source", "Config", "Installers", "Fonts", "Databases", "Reports", "Other/Review"]
 LABEL_TO_ID = {label: index for index, label in enumerate(LABELS)}
+
+
+def split_by_topic(rows, seed: int = 2026):
+    """Create deterministic, topic-disjoint splits with every label in both sets."""
+    topic_groups = {}
+    for row in rows:
+        topic_groups.setdefault(row["topic"].casefold().strip(), []).append(row)
+    topics_by_label = {label: [] for label in LABELS}
+    for topic, group in topic_groups.items():
+        for label in {row["label"] for row in group}:
+            topics_by_label[label].append(topic)
+    for label, topics_for_label in topics_by_label.items():
+        if len(topics_for_label) < 2:
+            raise ValueError(f"At least two distinct topics are required for class {label!r}.")
+    rng = random.Random(seed)
+    validation_topics = set()
+    for label in LABELS:
+        candidates = topics_by_label[label][:]
+        rng.shuffle(candidates)
+        validation_topics.add(candidates[0])
+    all_topics = list(topic_groups)
+    rng.shuffle(all_topics)
+    target = max(len(validation_topics), min(len(all_topics) - 1, round(len(all_topics) * 0.2)))
+    for topic in all_topics:
+        if len(validation_topics) >= target:
+            break
+        validation_topics.add(topic)
+    train_rows = [row for topic, group in topic_groups.items()
+                  if topic not in validation_topics for row in group]
+    valid_rows = [row for topic, group in topic_groups.items()
+                  if topic in validation_topics for row in group]
+    for split_name, split_rows in (("train", train_rows), ("validation", valid_rows)):
+        present = {row["label"] for row in split_rows}
+        missing = set(LABELS) - present
+        if missing:
+            raise ValueError(f"{split_name} split is missing classes: " + ", ".join(sorted(missing)))
+    return train_rows, valid_rows
 
 
 class MetadataDataset(Dataset):
@@ -59,47 +97,10 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
 
-    path = Path(args.data)
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = load_dataset(Path(args.data))
     if len(rows) < 20:
         raise SystemExit("At least 20 curated examples are required before training.")
-    for row in rows:
-        if set(row) != {"topic", "filename", "extension", "label"}:
-            raise ValueError("Each row must contain topic, filename, extension and label only.")
-        if row["label"] not in LABEL_TO_ID:
-            raise ValueError(f"Unknown label: {row['label']}")
-
-    # Keep every example from a topic together, while ensuring each class appears in both splits.
-    topic_groups = {}
-    for row in rows:
-        topic_groups.setdefault(row["topic"].casefold().strip(), []).append(row)
-    topics_by_label = {label: [] for label in LABELS}
-    for topic, group in topic_groups.items():
-        for label in {row["label"] for row in group}:
-            topics_by_label[label].append(topic)
-    for label, topics_for_label in topics_by_label.items():
-        if len(topics_for_label) < 2:
-            raise SystemExit(f"At least two distinct topics are required for class {label!r}.")
-    rng = random.Random(args.seed)
-    validation_topics = set()
-    for label in LABELS:
-        candidates = topics_by_label[label][:]
-        rng.shuffle(candidates)
-        validation_topics.add(candidates[0])
-    all_topics = list(topic_groups)
-    rng.shuffle(all_topics)
-    target_validation_topics = max(len(validation_topics), min(len(all_topics) - 1, round(len(all_topics) * 0.2)))
-    for topic in all_topics:
-        if len(validation_topics) >= target_validation_topics:
-            break
-        validation_topics.add(topic)
-    train_rows = [row for topic, group in topic_groups.items() if topic not in validation_topics for row in group]
-    valid_rows = [row for topic, group in topic_groups.items() if topic in validation_topics for row in group]
-    train_labels = {row["label"] for row in train_rows}
-    valid_labels = {row["label"] for row in valid_rows}
-    missing = set(LABELS) - train_labels | (set(LABELS) - valid_labels)
-    if missing:
-        raise SystemExit("Every class must occur in both train and validation splits; missing: " + ", ".join(sorted(missing)))
+    train_rows, valid_rows = split_by_topic(rows, args.seed)
     print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={len(validation_topics)}")
     tokenizer = LionAITokenizer()
     train_loader = DataLoader(MetadataDataset(train_rows, tokenizer), batch_size=args.batch_size,
