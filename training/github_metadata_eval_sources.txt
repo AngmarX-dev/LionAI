@@ -2,11 +2,11 @@
 # Whole repositories are held out from training to measure cross-project generalization.
 tailwindlabs/tailwindcss
 denoland/deno
-withastro/astro
+prettier/prettier
+vitejs/vite
 alacritty/alacritty
 godotengine/godot
 sharkdp/bat
 jesseduffield/lazygit
-neovim/neovim
 fonttools/fonttools
 BurntSushi/xsv
