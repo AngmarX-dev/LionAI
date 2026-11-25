@@ -77,7 +77,7 @@ def audit(train_path: Path, eval_path: Path) -> dict:
         "train_class_counts": dict(sorted(counts.items())),
         "evaluation_class_counts": dict(sorted(eval_counts.items())),
         "topic_overlap": 0,
-        "duplicate_train_examples": 0,
+        "duplicate_examples": 0,
         "metadata_schema": sorted(REQUIRED),
         "file_contents_used": False,
     }
