@@ -39,7 +39,7 @@ EXTENSION_RULES: dict[str, str] = {
 
 def extension_rule(filename: str) -> str | None:
     """Return a high-precision category for a plain filename, or None."""
-    if not isinstance(filename, str) or not filename or "/" in filename or "\\\\" in filename:
+    if not isinstance(filename, str) or not filename or "/" in filename or "\\" in filename:
         return None
     suffix = Path(filename).suffix.casefold().lstrip(".")
     return EXTENSION_RULES.get(suffix)
