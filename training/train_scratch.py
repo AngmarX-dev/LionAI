@@ -61,15 +61,15 @@ def split_by_topic(rows, seed: int = 2026):
 
 
 class MetadataDataset(Dataset):
-    def __init__(self, rows, tokenizer):
-        self.rows, self.tokenizer = rows, tokenizer
+    def __init__(self, rows, tokenizer, max_length: int = 192):
+        self.rows, self.tokenizer, self.max_length = rows, tokenizer, max_length
 
     def __len__(self):
         return len(self.rows)
 
     def __getitem__(self, index):
         row = self.rows[index]
-        ids, mask = self.tokenizer.batch([row])
+        ids, mask = self.tokenizer.batch([row], max_length=self.max_length)
         return ids[0], mask[0], LABEL_TO_ID[row["label"]]
 
 
@@ -98,6 +98,7 @@ def main():
     parser.add_argument("--n-layers", type=int, default=2)
     parser.add_argument("--feedforward", type=int, default=384)
     parser.add_argument("--dropout", type=float, default=0.25)
+    parser.add_argument("--max-length", type=int, default=192)
     parser.add_argument("--sampling-power", type=float, default=0.5,
                         help="Class-aware sampling strength from 0 (uniform rows) to 1 (uniform classes); default 0.5 is a moderate balance.")
     parser.add_argument("--seed", type=int, default=2026)
@@ -111,7 +112,7 @@ def main():
             or not 0 <= args.label_smoothing < 1
             or args.d_model < 16 or args.n_heads < 1 or args.d_model % args.n_heads
             or args.n_layers < 1 or args.feedforward < args.d_model
-            or not 0 <= args.dropout < 1 or not 0 <= args.sampling_power <= 1):
+            or args.max_length < 16 or not 0 <= args.dropout < 1 or not 0 <= args.sampling_power <= 1):
         parser.error("epochs, batch-size and patience must be positive; learning-rate must be positive; sampling-power must be in [0, 1]")
 
     random.seed(args.seed)
@@ -151,14 +152,15 @@ def main():
             sample_weights, num_samples=len(train_rows), replacement=True,
             generator=sampler_generator,
         )
-    train_loader = DataLoader(MetadataDataset(train_rows, tokenizer), batch_size=args.batch_size,
+    train_loader = DataLoader(MetadataDataset(train_rows, tokenizer, args.max_length), batch_size=args.batch_size,
                               shuffle=shuffle, sampler=sampler, collate_fn=collate)
-    valid_loader = DataLoader(MetadataDataset(valid_rows, tokenizer), batch_size=args.batch_size,
+    valid_loader = DataLoader(MetadataDataset(valid_rows, tokenizer, args.max_length), batch_size=args.batch_size,
                               shuffle=False, collate_fn=collate)
 
     config = LionAIConfig(
         d_model=args.d_model, n_heads=args.n_heads, n_layers=args.n_layers,
-        feedforward=args.feedforward, dropout=args.dropout, num_classes=len(LABELS),
+        feedforward=args.feedforward, max_length=args.max_length,
+        dropout=args.dropout, num_classes=len(LABELS),
     )
     model = build_model(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
