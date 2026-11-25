@@ -90,9 +90,10 @@ def main():
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=2026)
+    parser.add_argument("--patience", type=int, default=6)
     args = parser.parse_args()
-    if args.epochs < 1 or args.batch_size < 1:
-        parser.error("epochs and batch-size must be positive")
+    if args.epochs < 1 or args.batch_size < 1 or args.patience < 1:
+        parser.error("epochs, batch-size and patience must be positive")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -103,7 +104,8 @@ def main():
     if len(rows) < 20:
         raise SystemExit("At least 20 curated examples are required before training.")
     train_rows, valid_rows = split_by_topic(rows, args.seed)
-    print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={len(validation_topics)}")
+    validation_topics = len({row["topic"].casefold().strip() for row in valid_rows})
+    print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={validation_topics}")
     tokenizer = LionAITokenizer()
     train_loader = DataLoader(MetadataDataset(train_rows, tokenizer), batch_size=args.batch_size,
                               shuffle=True, collate_fn=collate)
@@ -116,7 +118,10 @@ def main():
     model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
     criterion = nn.CrossEntropyLoss()
-    best_accuracy = -1.0
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
+    best_validation_loss = float("inf")
+    best_accuracy = 0.0
+    epochs_without_improvement = 0
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -131,23 +136,50 @@ def main():
             total_loss += loss.item()
         model.eval()
         correct = count = 0
-        with torch.no_grad():
+        validation_loss_total = 0.0
+        with torch.inference_mode():
             for ids, mask, labels in valid_loader:
                 logits = model(ids.to(device), mask.to(device))
+                validation_loss_total += criterion(logits, labels.to(device)).item() * labels.numel()
                 correct += (logits.argmax(dim=1).cpu() == labels).sum().item()
                 count += labels.numel()
+        validation_loss = validation_loss_total / max(1, count)
         accuracy = correct / count if count else 0.0
-        print(f"epoch={epoch} loss={total_loss / max(1, len(train_loader)):.4f} validation_accuracy={accuracy:.3f}")
-        if accuracy > best_accuracy:
+        scheduler.step(validation_loss)
+        learning_rate = optimizer.param_groups[0]["lr"]
+        print(
+            f"epoch={epoch} train_loss={total_loss / max(1, len(train_loader)):.4f} "
+            f"validation_loss={validation_loss:.4f} validation_accuracy={accuracy:.3f} "
+            f"learning_rate={learning_rate:.2e}"
+        )
+        if validation_loss < best_validation_loss:
+            best_validation_loss = validation_loss
             best_accuracy = accuracy
+            epochs_without_improvement = 0
             output = Path(args.output)
             output.parent.mkdir(parents=True, exist_ok=True)
-            torch.save({"state_dict": model.cpu().state_dict(),
-                        "config": config.__dict__, "labels": LABELS,
-                        "tokenizer": "utf8-byte-v1", "initialized_from": "random",
-                        "training_examples": len(train_rows)}, output)
-            model.to(device)
+            checkpoint_state = {key: value.detach().cpu().clone()
+                                for key, value in model.state_dict().items()}
+            torch.save({
+                "state_dict": checkpoint_state,
+                "config": config.__dict__,
+                "labels": LABELS,
+                "tokenizer": "utf8-byte-v1",
+                "initialized_from": "random",
+                "training_examples": len(train_rows),
+                "validation_examples": len(valid_rows),
+                "validation_loss": best_validation_loss,
+                "validation_accuracy": best_accuracy,
+                "seed": args.seed,
+                "epoch": epoch,
+            }, output)
+        else:
+            epochs_without_improvement += 1
+            if epochs_without_improvement >= args.patience:
+                print(f"early_stopping=1 epoch={epoch} patience={args.patience}")
+                break
 
+    print(f"best_validation_loss={best_validation_loss:.4f}")
     print(f"best_validation_accuracy={best_accuracy:.3f}")
     print("Reminder: validate on a separate, topic-disjoint test set before using predictions.")
 
