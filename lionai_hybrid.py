@@ -36,13 +36,13 @@ KEYWORD_GROUPS = {
 }
 
 def _tokens(value: str) -> set[str]:
-    return {x.casefold() for x in re.findall(r"[\w-]+", value, flags=re.UNICODE)}
+    return {x.casefold() for x in re.findall(r"[\w]+", value, flags=re.UNICODE)}
 
 def _topic_folder(topic: str) -> str:
     chars = []
     for char in topic.strip():
         if char.isalnum(): chars.append(char)
-        elif char == "\\u200c": chars.append(char)
+        elif char == "\u200c": chars.append(char)
         elif char.isspace() or char in "-_.": chars.append("-")
     slug = re.sub(r"-+", "-", "".join(chars)).strip("-")[:48].strip("-")
     return slug or "Organized"
