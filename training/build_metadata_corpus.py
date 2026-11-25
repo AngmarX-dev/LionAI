@@ -10,6 +10,14 @@ import argparse
 import json
 from collections import Counter
 from pathlib import Path
+import sys
+
+# When executed as "python training/build_metadata_corpus.py", Python places
+# only the training/ directory on sys.path. Add the repository root so the
+# shared training package imports consistently in CLI and test contexts.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from training.audit_scratch_data import LABELS, load_dataset
 
