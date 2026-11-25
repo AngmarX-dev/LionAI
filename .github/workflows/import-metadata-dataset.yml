@@ -8,6 +8,8 @@ on:
       - ".github/workflows/import-metadata-dataset.yml"
       - "training/split_metadata_corpus.py"
       - "training/train_scratch.py"
+      - "lionai_scratch.py"
+      - "tests/test_lionai_scratch.py"
       - "training/sampling.py"
       - "training/evaluate_scratch.py"
       - "training/import_github_metadata.py"
@@ -82,10 +84,19 @@ jobs:
           python training/train_scratch.py \
             --data training/external/splits/train.jsonl \
             --validation-data training/external/splits/validation.jsonl \
-            --epochs 20 \
-            --batch-size 32 \
-            --sampling-power 0.5 \
-            --patience 5 \
+            --epochs 30 \
+            --batch-size 64 \
+            --learning-rate 0.00015 \
+            --weight-decay 0.05 \
+            --label-smoothing 0.05 \
+            --sampling-power 0.25 \
+            --d-model 128 \
+            --n-heads 4 \
+            --n-layers 2 \
+            --feedforward 384 \
+            --dropout 0.25 \
+            --max-length 192 \
+            --patience 6 \
             --output artifacts/lionai-scratch.pt \
             --history-output artifacts/training-history.json
       - name: Evaluate on the untouched topic-disjoint test split
