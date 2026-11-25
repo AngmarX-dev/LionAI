@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "lionai_hybrid.py"
+      - "lionai_scratch.py"
+      - "training/train_scratch.py"
+      - "training/lionai_scratch_train.jsonl"
       - "tests/**"
       - ".github/workflows/test-hybrid-engine.yml"
   pull_request:
