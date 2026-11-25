@@ -1,6 +1,6 @@
 import unittest
 
-from lionai_scratch import LionAITokenizer, SEP_ID, VOCAB_SIZE
+from lionai_scratch import LionAIConfig, LionAITokenizer, SEP_ID, VOCAB_SIZE, build_model
 
 
 class ScratchTokenizerTests(unittest.TestCase):
@@ -24,6 +24,27 @@ class ScratchTokenizerTests(unittest.TestCase):
     def test_max_length_is_respected(self):
         tokens = LionAITokenizer().encode("x" * 100, "y" * 100, ".txt", max_length=32)
         self.assertEqual(len(tokens), 32)
+
+    def test_model_is_randomly_initialized_and_has_expected_output_shape(self):
+        import torch
+        config = LionAIConfig(d_model=32, n_heads=4, n_layers=1, feedforward=64,
+                              max_length=32, num_classes=13, dropout=0.0)
+        model = build_model(config)
+        ids, mask = LionAITokenizer().batch([
+            {"topic": "school", "filename": "notes.pdf", "extension": ".pdf"},
+            {"topic": "music", "filename": "track.mp3", "extension": ".mp3"},
+        ], max_length=32)
+        logits = model(ids, mask)
+        self.assertEqual(tuple(logits.shape), (2, 13))
+        self.assertTrue(torch.isfinite(logits).all().item())
+
+    def test_model_rejects_sequences_longer_than_config(self):
+        import torch
+        config = LionAIConfig(d_model=32, n_heads=4, n_layers=1, feedforward=64,
+                              max_length=4, num_classes=13, dropout=0.0)
+        model = build_model(config)
+        with self.assertRaises(ValueError):
+            model(torch.ones((1, 5), dtype=torch.long), torch.ones((1, 5), dtype=torch.bool))
 
 
 if __name__ == "__main__":
