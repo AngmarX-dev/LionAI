@@ -20,7 +20,7 @@ from urllib.request import Request, urlopen
 
 API = "https://api.github.com"
 ALLOWED_LICENSES = {
-    "0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "CC0-1.0",
+    "0BSD", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "CC0-1.0", "CC-BY-4.0",
     "ISC", "MIT", "OFL-1.1", "PSF-2.0", "Unlicense", "Zlib",
 }
 LABELS = {
