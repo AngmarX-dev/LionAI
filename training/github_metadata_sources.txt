@@ -33,8 +33,6 @@ vercel/next.js
 facebook/react
 electron/electron
 tauri-apps/tauri
-godotengine/godot-demo-projects
-KhronosGroup/glTF-Sample-Assets
 mdn/webaudio-examples
 mdn/dom-examples
 google/material-design-icons
