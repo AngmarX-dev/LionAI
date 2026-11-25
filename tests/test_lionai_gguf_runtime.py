@@ -51,7 +51,7 @@ def _write_test_gguf(path: Path, model, labels: list[str], config: LionAIConfig)
     tensor_infos = bytearray()
     tensor_data = bytearray()
     for name, shape, raw in tensors:
-        tensor_data.extend(b"\\0" * ((-len(tensor_data)) % 32))
+        tensor_data.extend(b"\0" * ((-len(tensor_data)) % 32))
         offset = len(tensor_data)
         tensor_infos.extend(_string(name))
         tensor_infos.extend(struct.pack("<I", len(shape)))
@@ -61,7 +61,7 @@ def _write_test_gguf(path: Path, model, labels: list[str], config: LionAIConfig)
     header = bytearray(b"GGUF" + struct.pack("<IQQ", 3, len(tensors), len(metadata)))
     header.extend(b"".join(metadata))
     header.extend(tensor_infos)
-    header.extend(b"\\0" * ((-len(header)) % 32))
+    header.extend(b"\0" * ((-len(header)) % 32))
     path.write_bytes(header + tensor_data)
 
 
