@@ -12,7 +12,7 @@ python -m pip install -r training/requirements-scratch.txt
 
 ```bash
 python training/lionai_gguf_runtime.py \
-  --model ./LionAI-scratch-v1.gguf \
+  --model ./LionAI-scratch-v2.gguf \
   --topic "photography" \
   --filename "summer.jpg" \
   --device auto
@@ -38,3 +38,15 @@ The tests write a tiny temporary GGUF fixture and verify that inference logits a
 ## Hybrid decision layer
 
 The runtime applies a conservative extension rule only for high-precision, unambiguous suffixes (for example, `.jpg` and `.png`). Ambiguous suffixes such as `.json`, `.sql`, `.html`, and `.ts` remain model-only. The JSON result preserves `raw_top_category`, exposes `suggested_category`, and records `decision_source` and `rule_override`. If a rule conflicts with the Transformer, the result remains `Other/Review` with `needs_review=true`; the suggestion is not silently treated as a confirmed classification.
+
+## Export from a trained checkpoint
+
+After training, export and verify the custom GGUF file:
+
+```bash
+python training/export_gguf.py --checkpoint artifacts/lionai-scratch.pt --output artifacts/LionAI-scratch-v2.gguf
+```
+
+The exporter validates the GGUF header and metadata, reloads all tensors, requires bit-exact tensor round-trip equality, and checks that a fixed inference input produces exactly matching PyTorch and GGUF-runtime logits. The generated JSON sidecar records the SHA-256 digest and validation status.
+
+A successful serialization check does not certify model quality. Promote a checkpoint only after repository-disjoint evaluation meets the project's acceptance criteria. The v2 benchmark currently remains below the earlier independent-evaluation baseline, so its GGUF is a technical candidate rather than a production release.
