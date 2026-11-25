@@ -2,7 +2,9 @@
 
 ## Selected model: LionAI Scratch
 
-LionAI's selected architecture is a compact Transformer classifier initialized with random weights and paired with a custom UTF-8 byte tokenizer. No pretrained language-model checkpoint is downloaded or fine-tuned.
+LionAI uses a task-specific Transformer classifier initialized from random weights and paired with a custom UTF-8 byte tokenizer. Version 2 uses a compact 128-dimensional, 2-layer encoder (4 attention heads, 384-wide feed-forward block, 0.25 dropout, 192-byte input cap). Training applies AdamW weight decay, label smoothing, moderate square-root class-aware sampling, and early stopping. Checkpoints are selected by validation macro-F1, with validation loss as a tie-breaker, to avoid selecting solely for majority-class accuracy. No pretrained language-model checkpoint is downloaded or fine-tuned.
+
+The v2 settings are a controlled regularization and capacity change, not a claim of improved accuracy. Keep the repository-disjoint benchmark untouched and compare its macro-F1, per-class recall, calibration error, and Brier score against the prior checkpoint before accepting the new model.
 
 ## Install
 
@@ -90,7 +92,7 @@ The runtime supports this LionAI GGUF F32 layout, validates metadata and every t
 
 ## GitHub Actions
 
-The **LionAI metadata dataset import and full-corpus training** workflow imports all available Hugging Face rows plus up to 1,500 metadata records per eligible GitHub repository, audits the merged corpus, creates topic-disjoint splits, trains from random initialization, evaluates once on the untouched test split, and uploads the dataset, split report, model, history, and evaluation report as a 14-day artifact. The artifact keeps large generated data and model weights out of Git history.
+The **LionAI metadata dataset import and full-corpus training** workflow imports all available Hugging Face rows plus up to 1,500 metadata records per eligible GitHub repository, audits the merged corpus, creates topic-disjoint splits, trains the regularized v2 model from random initialization, evaluates on both the untouched topic-disjoint test split and the repository-disjoint benchmark, and uploads the dataset, split report, model, history, and evaluation reports as a 14-day artifact. The artifact keeps large generated data and model weights out of Git history.
 
 ## Source limitations
 
