@@ -9,6 +9,7 @@ import torch
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
 from training.lionai_gguf_runtime import GGUFError, GGUFReader, load_gguf_model, predict_gguf
+from training.metadata_rules import extension_rule
 
 
 def _string(value: str) -> bytes:
@@ -107,6 +108,29 @@ class LionAIGGUFTests(unittest.TestCase):
         self.assertTrue(result["safety"]["metadata_only"])
         self.assertFalse(result["safety"]["file_contents_read"])
         self.assertFalse(result["safety"]["filesystem_modified"])
+
+    def test_high_precision_extension_rules_and_ambiguous_suffixes(self):
+        self.assertEqual(extension_rule("summer.jpg"), "Images")
+        self.assertEqual(extension_rule("PHOTO.PNG"), "Images")
+        self.assertEqual(extension_rule("recording.mp3"), "Audio")
+        self.assertIsNone(extension_rule("settings.json"))
+        self.assertIsNone(extension_rule("schema.sql"))
+        self.assertIsNone(extension_rule("stream.ts"))
+        self.assertIsNone(extension_rule("folder\\\\summer.jpg"))
+
+    def test_prediction_exposes_rule_override_for_image_extension(self):
+        torch.manual_seed(1234)
+        config = LionAIConfig(dropout=0.0)
+        model = build_model(config).eval()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.gguf"
+            _write_test_gguf(path, model, [f"class-{i}" for i in range(config.num_classes)], config)
+            result = predict_gguf("photography", "summer.jpg", path, device="cpu")
+        self.assertEqual(result["predicted_category"], "Images")
+        self.assertEqual(result["rule_category"], "Images")
+        self.assertEqual(result["decision_source"], "extension_rule")
+        self.assertTrue(result["rule_override"])
+        self.assertTrue(result["needs_review"])
 
     def test_rejects_non_gguf_file(self):
         with tempfile.TemporaryDirectory() as directory:
