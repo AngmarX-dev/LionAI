@@ -9,7 +9,7 @@ LionAI is an offline, task-specific file-organization model. The selected direct
 - **Inputs:** user topic, filename and extension only. File contents are never read.
 - **Outputs:** one of 13 organization classes. The native safety/organization layer remains responsible for constructing and validating paths.
 - **Initialization:** random weights, reproducible seed; no pretrained checkpoint loading.
-- **Training data:** `training/lionai_scratch_train.jsonl`, a small curated starter set. It is a development dataset, not enough to claim production accuracy.
+- **Training data:** `training/lionai_scratch_train.jsonl`, now expanded to 149 curated/synthetic metadata examples across all 13 classes. It remains a small development dataset, not enough to claim production accuracy.
 - **Checkpoint:** `artifacts/lionai-scratch.pt` (generated locally; model weights are not committed to Git).
 
 Install and train:
@@ -19,6 +19,7 @@ python -m venv .venv
 # Windows: .venv\\Scripts\\activate
 # Linux: source .venv/bin/activate
 python -m pip install -r training/requirements-scratch.txt
+python training/audit_scratch_data.py
 python training/train_scratch.py --epochs 30
 
 # After a local training run, classify one filename (metadata only):
@@ -28,7 +29,7 @@ python training/predict_scratch.py --topic "مدارک مدرسه" --filename "b
 python training/evaluate_scratch.py --test training/lionai_scratch_eval.jsonl --output artifacts/evaluation.json
 ```
 
-The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset and evaluate on a separate, topic-disjoint test set with per-class precision/recall before enabling model predictions in the organizer. The current validation split and 26-example evaluation set are development checks, not final benchmarks.
+The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset and evaluate on a separate, topic-disjoint test set with per-class precision/recall before enabling model predictions in the organizer. The current validation split and 26-example evaluation set are development checks, not final benchmarks. The expanded training examples include synthetic metadata and must be supplemented with representative, consented real-world filename/topic pairs before drawing quality conclusions.
 
 ## Existing components
 
@@ -38,6 +39,7 @@ The training script uses CUDA when available and otherwise falls back to CPU. St
 - `training/train_scratch.py`: supervised training pipeline with a topic-disjoint validation split (examples sharing a topic stay in the same split).
 - `training/predict_scratch.py`: safe local inference; emits a category and confidence only, never a destination path or filesystem action.
 - `training/evaluate_scratch.py`: independent evaluation with per-class precision/recall/F1 and a confusion matrix; rejects topic overlap with the training set.
+- `training/audit_scratch_data.py`: audits dataset schemas, class coverage, duplicate samples, plain filenames and train/evaluation topic separation.
 - `training/lionai_scratch_eval.jsonl`: a small topic-disjoint starter evaluation set (26 synthetic metadata examples; not a production benchmark).
 - `tests/test_lionai_scratch_evaluation.py`: validates evaluation data boundaries and metadata-only schema.
 - `tests/test_lionai_scratch_inference.py`: verifies the inference safety contract.
