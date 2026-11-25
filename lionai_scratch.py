@@ -34,12 +34,14 @@ class LionAITokenizer:
 @dataclass(frozen=True)
 class LionAIConfig:
     vocab_size: int = VOCAB_SIZE
-    d_model: int = 192
+    # LionAI v2: smaller encoder with stronger regularization to reduce
+    # memorization of repository-specific filename patterns.
+    d_model: int = 128
     n_heads: int = 4
-    n_layers: int = 3
-    feedforward: int = 512
-    max_length: int = 256
-    dropout: float = 0.1
+    n_layers: int = 2
+    feedforward: int = 384
+    max_length: int = 192
+    dropout: float = 0.25
     num_classes: int = 13
 
 
