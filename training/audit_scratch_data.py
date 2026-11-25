@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 LABELS = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
@@ -28,7 +28,7 @@ def load_dataset(path: Path) -> list[dict[str, str]]:
         if not row["topic"].strip() or not row["filename"].strip():
             raise ValueError(f"{path}:{line_number}: topic and filename cannot be empty")
         name = row["filename"]
-        if name in {".", ".."} or "/" in name or "\\\\" in name or any(ord(ch) < 32 for ch in name):
+        if name in {".", ".."} or "/" in name or "\\" in name or any(ord(ch) < 32 for ch in name):
             raise ValueError(f"{path}:{line_number}: filename must be a plain filename")
         if row["label"] not in LABELS:
             raise ValueError(f"{path}:{line_number}: unknown label {row['label']!r}")
