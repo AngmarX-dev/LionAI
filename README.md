@@ -27,6 +27,15 @@ python training/predict_scratch.py --topic "مدارک مدرسه" --filename "b
 
 # Evaluate on a separate test set; overlapping topics are rejected:
 python training/evaluate_scratch.py --test training/lionai_scratch_eval.jsonl --output artifacts/evaluation.json
+
+# Fit confidence calibration on a dedicated split (never reuse the final test set):
+python training/calibrate_scratch.py --calibration training/lionai_scratch_calibration.jsonl
+
+# Predict with calibrated confidence and ambiguity review:
+python training/predict_scratch.py --topic "مدارک مدرسه" --filename "biology_notes.pdf" --calibration artifacts/lionai-calibration.json
+
+# Evaluate calibration quality on a separate untouched test set:
+python training/evaluate_scratch.py --test path/to/untouched-test.jsonl --calibration artifacts/lionai-calibration.json --output artifacts/evaluation-calibrated.json
 ```
 
 The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset and evaluate on a separate, topic-disjoint test set with per-class precision/recall before enabling model predictions in the organizer. The current validation split and 26-example evaluation set are development checks, not final benchmarks. The expanded training examples include synthetic metadata and must be supplemented with representative, consented real-world filename/topic pairs before drawing quality conclusions.
@@ -38,7 +47,9 @@ The training script uses CUDA when available and otherwise falls back to CPU. St
 - `lionai_scratch.py`: custom byte tokenizer and randomly initialized Transformer classifier.
 - `training/train_scratch.py`: supervised training pipeline with deterministic topic-disjoint splitting, validation-loss checkpoint selection, learning-rate scheduling, early stopping, atomic checkpoint writes and a per-epoch JSON history report.
 - `training/predict_scratch.py`: safe local inference; emits a category and confidence only, never a destination path or filesystem action.
-- `training/evaluate_scratch.py`: independent evaluation with per-class precision/recall/F1 and a confusion matrix; rejects topic overlap with the training set.
+- `training/evaluate_scratch.py`: independent evaluation with per-class precision/recall/F1, confusion matrix, expected calibration error (ECE) and multiclass Brier score; optionally evaluates temperature-calibrated probabilities.
+- `training/calibrate_scratch.py` and `training/calibration.py`: fit and validate scalar temperature scaling using a dedicated topic-disjoint calibration split; never use the final test set for fitting.
+- Calibrated inference also checks the gap between the top two class probabilities; low confidence or a small margin routes the item to `Other/Review`.
 - `training/audit_scratch_data.py`: audits dataset schemas, class coverage, duplicate samples in both datasets, filename/extension consistency, plain filenames and train/evaluation topic separation.
 - `training/train_scratch.py` now uses the same strict dataset loader and a deterministic topic-disjoint split that keeps every class in both partitions.
 - `training/lionai_scratch_eval.jsonl`: a small topic-disjoint starter evaluation set (26 synthetic metadata examples; not a production benchmark).
