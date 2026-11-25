@@ -137,6 +137,21 @@ def collect_repo(repo: str, token: str, max_files: int) -> tuple[list[dict[str, 
         f"/repos/{repo}/git/trees/{tree_sha}?recursive=1",
         token,
     )
+    # Recursive Git tree responses can be truncated for large repositories.
+    # Never treat a partial tree as a complete benchmark or training source.
+    if tree.get("truncated"):
+        return [], {
+            "repository": repo,
+            "status": "skipped_truncated_tree",
+            "license": license_id,
+            "revision": default_branch,
+            "commit": commit_sha,
+            "tree_sha": tree.get("sha"),
+            "tree_truncated": True,
+            "metadata_only": True,
+            "source_url": f"https://github.com/{repo}",
+        }
+
     entries = tree.get("tree") or []
     candidates = []
     seen_names = set()
