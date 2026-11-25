@@ -1,0 +1,22 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Hugging Face / Arrow dataset caches
+.cache/
+.hf_cache/
+**/.cache/huggingface/
+*.arrow
+*.parquet
+
+# Downloaded external corpora and generated training artifacts
+training/external/
+artifacts/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
