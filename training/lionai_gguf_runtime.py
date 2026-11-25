@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
+from training.metadata_rules import extension_rule
 
 GGUF_VALUE_FORMATS = {
     0: ("<B", 1), 1: ("<b", 1), 2: ("<H", 2), 3: ("<h", 2),
@@ -197,8 +198,18 @@ def predict_gguf(topic: str, filename: str, model_path: str | Path,
     top_probs, top_ids = probs.topk(k=2)
     confidence = float(top_probs[0].item())
     margin = float((top_probs[0] - top_probs[1]).item())
-    predicted = labels[int(top_ids[0].item())]
-    needs_review = confidence < confidence_threshold or margin < margin_threshold or predicted == "Other/Review"
+    raw_predicted = labels[int(top_ids[0].item())]
+    rule_category = extension_rule(filename)
+    # High-precision suffixes can correct obvious contradictions (e.g. jpg -> Images).
+    # Keep the model's raw result and require review whenever the rule overrides it.
+    predicted = rule_category or raw_predicted
+    rule_override = rule_category is not None and rule_category != raw_predicted
+    needs_review = (
+        confidence < confidence_threshold
+        or margin < margin_threshold
+        or raw_predicted == "Other/Review"
+        or rule_override
+    )
     return {
         "model": "lionai-scratch-transformer-v1",
         "format": "GGUF v3 / F32",
@@ -206,7 +217,10 @@ def predict_gguf(topic: str, filename: str, model_path: str | Path,
         "filename": filename,
         "extension": extension,
         "predicted_category": "Other/Review" if needs_review else predicted,
-        "raw_top_category": predicted,
+        "raw_top_category": raw_predicted,
+        "rule_category": rule_category,
+        "decision_source": "extension_rule" if rule_category is not None else "transformer",
+        "rule_override": rule_override,
         "confidence": round(confidence, 6),
         "confidence_margin": round(margin, 6),
         "needs_review": needs_review,
