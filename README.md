@@ -28,18 +28,22 @@ Training uses CUDA when available and otherwise CPU. A completed training run do
 
 ## Hugging Face Datasets integration
 
-The project uses the official Hugging Face Datasets library (https://github.com/huggingface/datasets) to load and normalize external metadata datasets. The library is a data-loading/processing toolkit, **not itself a training dataset**.
+The project uses the official Hugging Face Datasets library (https://github.com/huggingface/datasets) to load and normalize external metadata datasets. The library is a data-loading/processing toolkit, **not itself a training dataset**. LionAI installs the released Python package from PyPI; it does not clone or vendor the full library source tree.
 
-A first supplemental source is Smart Downloads Organiser Metadata (https://huggingface.co/datasets/AnodemTheGr8t/file_organiser_metadata). Its card describes synthetic English metadata such as filename, extension, folder hint, size, and a seven-class label, and declares CC0-1.0. Its card and viewer currently report different row counts, so the importer reports the actual loaded count rather than assuming one.
+A first supplemental source is Smart Downloads Organiser Metadata (https://huggingface.co/datasets/AnodemTheGr8t/file_organiser_metadata). Its card describes synthetic English metadata such as filename, extension, folder hint, size, and a seven-class label, and declares CC0-1.0. Its card and viewer have reported different row counts, so the importer reports the actual loaded count rather than assuming one.
 
     python -m pip install -r training/requirements-scratch.txt
     python training/import_hf_dataset.py
+    # Optional bounded streaming import:
+    python training/import_hf_dataset.py --max-rows 5000
 
 The importer:
-- loads records through datasets.load_dataset;
+- loads records through datasets.load_dataset with remote dataset code execution explicitly disabled;
+- can use streaming mode with --max-rows to bound the import;
 - reads metadata fields only, never file contents;
 - maps the source's seven labels to LionAI's 13 classes conservatively;
-- rejects path-like filenames and removes duplicate topic/filename records;
+- rejects path-like filenames, control characters and oversized topics;
+- skips exact duplicate metadata rows but rejects conflicting labels for the same topic/filename;
 - writes a local supplemental file to training/external/ (not committed by the importer).
 
 **Important:** imported rows are supplemental, not yet merged into the official train/evaluation split. The source is synthetic, English-only, and its labels are largely extension-derived. Its folder_hint becomes the topic field, so group leakage and class coverage must be audited before combining it with LionAI's topic-disjoint data.
@@ -49,6 +53,7 @@ For a reproducible import, pass a specific Hugging Face dataset commit hash with
 ## Repository components
 
 - lionai.c: native organizer and experimental baseline.
+- lionai.py: optional launcher for the native executable.
 - lionai_hybrid.py: metadata-only preview engine; never reads or moves files.
 - lionai_scratch.py: custom tokenizer and randomly initialized Transformer.
 - training/train_scratch.py: topic-disjoint training split, validation-based checkpoint selection, scheduler, early stopping, and atomic checkpoint output.
