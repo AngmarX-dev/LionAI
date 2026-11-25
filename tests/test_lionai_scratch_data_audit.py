@@ -40,6 +40,21 @@ class ScratchDatasetAuditTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "extension does not match"):
                 load_dataset(path)
 
+
+    def test_rejects_duplicate_evaluation_examples(self):
+        with tempfile.TemporaryDirectory() as directory:
+            labels = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
+                      "Source", "Config", "Installers", "Fonts", "Databases", "Reports", "Other/Review"]
+            train = [{"topic": f"train topic {i}", "filename": f"train_{i}.dat",
+                      "extension": "dat", "label": label} for i, label in enumerate(labels)]
+            evaluation = [{"topic": f"eval topic {i}", "filename": f"eval_{i}.dat",
+                           "extension": "dat", "label": label} for i, label in enumerate(labels)]
+            evaluation.append(dict(evaluation[0]))
+            train_path = self.make_file(directory, "train.jsonl", train)
+            eval_path = self.make_file(directory, "eval.jsonl", evaluation)
+            with self.assertRaisesRegex(ValueError, "Duplicate evaluation"):
+                audit(train_path, eval_path)
+
     def test_rejects_train_eval_topic_leakage(self):
         with tempfile.TemporaryDirectory() as directory:
             labels = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
