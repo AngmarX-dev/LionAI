@@ -16,19 +16,23 @@ This installs PyTorch and Hugging Face datasets. The latter is used only to load
 
 Default source: AnodemTheGr8t/file_organiser_metadata.
 
-The importer uses datasets.load_dataset, validates plain filenames, deduplicates (folder_hint, file_name), maps the source's seven labels to LionAI's 13 categories, and writes:
+For a bounded streaming import:
 
-    training/external/lionai_file_organiser_metadata.jsonl
+    python training/import_hf_dataset.py --max-rows 5000
 
-Optional arguments:
+For reproducibility, pin a dataset commit:
 
     python training/import_hf_dataset.py --dataset AnodemTheGr8t/file_organiser_metadata --split train --revision DATASET_COMMIT_SHA --output training/external/lionai_file_organiser_metadata.jsonl
 
-Pin --revision to a commit SHA for reproducibility. Do not commit downloaded/generated dataset files automatically.
+The importer uses datasets.load_dataset with remote code execution explicitly disabled. It validates plain filenames and topic metadata, deduplicates identical (folder_hint, file_name) rows, rejects conflicting labels for duplicate keys, maps the source's seven labels to LionAI's 13 categories, and writes:
+
+    training/external/lionai_file_organiser_metadata.jsonl
+
+The generated directory is ignored by Git. Downloaded corpora and trained checkpoints are not committed automatically.
 
 ## Source limitations and split policy
 
-The source dataset is synthetic, English-only, and its card says labels are largely determined by file extensions. It is useful for parser and mapping tests, but it is not sufficient as a production benchmark. The card declares CC0-1.0; verify the source card before redistributing derived data. The card and dataset viewer currently disagree on row count; the importer reports the number actually loaded.
+The source dataset is synthetic, English-only, and its card says labels are largely determined by file extensions. It is useful for parser and mapping tests, but it is not sufficient as a production benchmark. The card declares CC0-1.0; verify the source card before redistributing derived data. The card and dataset viewer have reported different row counts; the importer reports the number actually loaded.
 
 The source has folder_hint, not LionAI's user-entered topic. The importer maps that field into topic to preserve contextual metadata. Consequently, the output is kept separate from official training/evaluation files until group leakage, class coverage, and topic-disjoint split behavior are reviewed. Do not use the same source rows in training, calibration, and final test sets.
 
