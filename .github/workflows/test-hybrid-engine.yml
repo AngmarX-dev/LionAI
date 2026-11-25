@@ -1,4 +1,4 @@
-name: LionAI hybrid engine tests
+name: LionAI scratch model and data tests
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
       - "lionai_hybrid.py"
       - "lionai_scratch.py"
       - "training/**"
-      - "lionai_scratch.py"
       - "tests/**"
       - ".github/workflows/test-hybrid-engine.yml"
   pull_request:
@@ -30,11 +29,27 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install CPU test dependency
-        run: python -m pip install --upgrade pip torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install CPU test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5.0"
       - name: Compile Python modules
-        run: python -m py_compile lionai_hybrid.py lionai_scratch.py training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py training/calibrate_scratch.py training/calibration.py training/audit_scratch_data.py tests/test_lionai_calibration.py tests/test_lionai_calibration_inference.py tests/test_lionai_hybrid.py tests/test_lionai_scratch.py tests/test_lionai_scratch_inference.py tests/test_lionai_scratch_evaluation.py tests/test_lionai_scratch_data_audit.py tests/test_lionai_scratch_training_split.py
-      - name: Verify training CLI entry points
-        run: python training/train_scratch.py --help && python training/predict_scratch.py --help && python training/evaluate_scratch.py --help && python training/calibrate_scratch.py --help && python training/audit_scratch_data.py
+        run: |
+          python -m py_compile lionai_hybrid.py lionai_scratch.py \
+            training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py \
+            training/calibrate_scratch.py training/calibration.py training/audit_scratch_data.py \
+            training/import_hf_dataset.py tests/test_hf_dataset_import.py \
+            tests/test_lionai_calibration.py tests/test_lionai_calibration_inference.py \
+            tests/test_lionai_hybrid.py tests/test_lionai_scratch.py \
+            tests/test_lionai_scratch_inference.py tests/test_lionai_scratch_evaluation.py \
+            tests/test_lionai_scratch_data_audit.py tests/test_lionai_scratch_training_split.py
+      - name: Verify training and import CLI entry points
+        run: |
+          python training/train_scratch.py --help
+          python training/predict_scratch.py --help
+          python training/evaluate_scratch.py --help
+          python training/calibrate_scratch.py --help
+          python training/import_hf_dataset.py --help
+          python training/audit_scratch_data.py
       - name: Run project tests
         run: python -m unittest discover -s tests -v
