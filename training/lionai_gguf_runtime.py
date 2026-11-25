@@ -187,7 +187,7 @@ def predict_gguf(topic: str, filename: str, model_path: str | Path,
         "cuda" if device == "auto" and torch.cuda.is_available()
         else "cpu" if device == "auto" else device
     )
-    model, labels, config, _ = load_gguf_model(model_path, selected_device)
+    model, labels, config, metadata = load_gguf_model(model_path, selected_device)
     extension = Path(filename).suffix.casefold().lstrip(".")
     ids, mask = LionAITokenizer().batch(
         [{"topic": topic, "filename": filename, "extension": extension}],
