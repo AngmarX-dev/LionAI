@@ -92,8 +92,8 @@ def main():
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--patience", type=int, default=6)
     args = parser.parse_args()
-    if args.epochs < 1 or args.batch_size < 1 or args.patience < 1:
-        parser.error("epochs, batch-size and patience must be positive")
+    if args.epochs < 1 or args.batch_size < 1 or args.patience < 1 or args.learning_rate <= 0:
+        parser.error("epochs, batch-size and patience must be positive; learning-rate must be greater than zero")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
