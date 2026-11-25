@@ -69,9 +69,21 @@ def main():
         if row["label"] not in LABEL_TO_ID:
             raise ValueError(f"Unknown label: {row['label']}")
 
-    random.shuffle(rows)
-    split = max(1, int(len(rows) * 0.9))
-    train_rows, valid_rows = rows[:split], rows[split:]
+    # Keep every example from a topic in the same split to reduce topic leakage.
+    topic_groups = {}
+    for row in rows:
+        topic_groups.setdefault(row["topic"].casefold().strip(), []).append(row)
+    topics = sorted(topic_groups)
+    if len(topics) < 5:
+        raise SystemExit("At least five distinct topics are required for a topic-disjoint validation split.")
+    random.Random(args.seed).shuffle(topics)
+    validation_topic_count = max(1, min(len(topics) - 1, round(len(topics) * 0.2)))
+    validation_topics = set(topics[:validation_topic_count])
+    train_rows = [row for topic, group in topic_groups.items() if topic not in validation_topics for row in group]
+    valid_rows = [row for topic, group in topic_groups.items() if topic in validation_topics for row in group]
+    if not train_rows or not valid_rows:
+        raise SystemExit("Could not create non-empty topic-disjoint train/validation splits.")
+    print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={len(validation_topics)}")
     tokenizer = LionAITokenizer()
     train_loader = DataLoader(MetadataDataset(train_rows, tokenizer), batch_size=args.batch_size,
                               shuffle=True, collate_fn=collate)
