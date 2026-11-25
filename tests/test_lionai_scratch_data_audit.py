@@ -41,6 +41,15 @@ class ScratchDatasetAuditTests(unittest.TestCase):
                 load_dataset(path)
 
 
+    def test_accepts_compound_archive_extension(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.make_file(directory, "compound.jsonl", [{
+                "topic": "backups", "filename": "backup.tar.gz",
+                "extension": "tar.gz", "label": "Archives",
+            }])
+            rows = load_dataset(path)
+            self.assertEqual(rows[0]["extension"], "tar.gz")
+
     def test_rejects_duplicate_evaluation_examples(self):
         with tempfile.TemporaryDirectory() as directory:
             labels = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
