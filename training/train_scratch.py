@@ -90,7 +90,14 @@ def main():
     parser.add_argument("--output", default="artifacts/lionai-scratch.pt")
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--learning-rate", type=float, default=1.5e-4)
+    parser.add_argument("--weight-decay", type=float, default=0.05)
+    parser.add_argument("--label-smoothing", type=float, default=0.05)
+    parser.add_argument("--d-model", type=int, default=128)
+    parser.add_argument("--n-heads", type=int, default=4)
+    parser.add_argument("--n-layers", type=int, default=2)
+    parser.add_argument("--feedforward", type=int, default=384)
+    parser.add_argument("--dropout", type=float, default=0.25)
     parser.add_argument("--sampling-power", type=float, default=0.5,
                         help="Class-aware sampling strength from 0 (uniform rows) to 1 (uniform classes); default 0.5 is a moderate balance.")
     parser.add_argument("--seed", type=int, default=2026)
@@ -100,7 +107,11 @@ def main():
                         help="Optional independent topic-disjoint validation JSONL; when set, train on all rows in --data")
     args = parser.parse_args()
     if (args.epochs < 1 or args.batch_size < 1 or args.patience < 1
-            or args.learning_rate <= 0 or not 0 <= args.sampling_power <= 1):
+            or args.learning_rate <= 0 or args.weight_decay < 0
+            or not 0 <= args.label_smoothing < 1
+            or args.d_model < 16 or args.n_heads < 1 or args.d_model % args.n_heads
+            or args.n_layers < 1 or args.feedforward < args.d_model
+            or not 0 <= args.dropout < 1 or not 0 <= args.sampling_power <= 1):
         parser.error("epochs, batch-size and patience must be positive; learning-rate must be positive; sampling-power must be in [0, 1]")
 
     random.seed(args.seed)
@@ -145,11 +156,16 @@ def main():
     valid_loader = DataLoader(MetadataDataset(valid_rows, tokenizer), batch_size=args.batch_size,
                               shuffle=False, collate_fn=collate)
 
-    config = LionAIConfig(num_classes=len(LABELS))
+    config = LionAIConfig(
+        d_model=args.d_model, n_heads=args.n_heads, n_layers=args.n_layers,
+        feedforward=args.feedforward, dropout=args.dropout, num_classes=len(LABELS),
+    )
     model = build_model(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay,
+    )
     class_counts = torch.tensor(
         [sum(row["label"] == label for row in train_rows) for label in LABELS],
         dtype=torch.float32, device=device,
@@ -159,10 +175,11 @@ def main():
         raise SystemExit("Training data is missing classes: " + ", ".join(missing))
     # Sampling, rather than multiplying loss weights, moderates class imbalance without
     # letting the rarest classes dominate every gradient update.
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
     best_validation_loss = float("inf")
     best_accuracy = 0.0
+    best_validation_macro_f1 = -1.0
     epochs_without_improvement = 0
     history = []
 
@@ -180,14 +197,34 @@ def main():
         model.eval()
         correct = count = 0
         validation_loss_total = 0.0
+        confusion = torch.zeros((len(LABELS), len(LABELS)), dtype=torch.long)
         with torch.inference_mode():
             for ids, mask, labels in valid_loader:
                 logits = model(ids.to(device), mask.to(device))
                 validation_loss_total += criterion(logits, labels.to(device)).item() * labels.numel()
-                correct += (logits.argmax(dim=1).cpu() == labels).sum().item()
+                predictions = logits.argmax(dim=1).cpu()
+                correct += (predictions == labels).sum().item()
                 count += labels.numel()
+                encoded_pairs = labels * len(LABELS) + predictions
+                confusion += torch.bincount(
+                    encoded_pairs, minlength=len(LABELS) * len(LABELS)
+                ).reshape(len(LABELS), len(LABELS))
         validation_loss = validation_loss_total / max(1, count)
         accuracy = correct / count if count else 0.0
+        class_f1 = []
+        for class_index in range(len(LABELS)):
+            tp = int(confusion[class_index, class_index].item())
+            fp = int(confusion[:, class_index].sum().item()) - tp
+            fn = int(confusion[class_index, :].sum().item()) - tp
+            support = tp + fn
+            precision = tp / (tp + fp) if tp + fp else 0.0
+            recall = tp / support if support else 0.0
+            if support:
+                class_f1.append(
+                    2 * precision * recall / (precision + recall)
+                    if precision + recall else 0.0
+                )
+        validation_macro_f1 = sum(class_f1) / len(class_f1) if class_f1 else 0.0
         scheduler.step(validation_loss)
         learning_rate = optimizer.param_groups[0]["lr"]
         epoch_record = {
@@ -195,6 +232,7 @@ def main():
             "train_loss": round(total_loss / max(1, len(train_loader)), 6),
             "validation_loss": round(validation_loss, 6),
             "validation_accuracy": round(accuracy, 6),
+            "validation_macro_f1": round(validation_macro_f1, 6),
             "learning_rate": learning_rate,
         }
         history.append(epoch_record)
@@ -202,9 +240,12 @@ def main():
         history_path.parent.mkdir(parents=True, exist_ok=True)
         history_tmp = history_path.with_name(history_path.name + ".tmp")
         history_tmp.write_text(json.dumps({
-            "model": "lionai-scratch-transformer-v1",
+            "model": "lionai-scratch-transformer-v2",
+            "architecture": config.__dict__,
             "seed": args.seed,
             "sampling_power": args.sampling_power,
+            "weight_decay": args.weight_decay,
+            "label_smoothing": args.label_smoothing,
             "initialized_from": "random",
             "history": history,
         }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -212,11 +253,20 @@ def main():
         print(
             f"epoch={epoch} train_loss={total_loss / max(1, len(train_loader)):.4f} "
             f"validation_loss={validation_loss:.4f} validation_accuracy={accuracy:.3f} "
+            f"validation_macro_f1={validation_macro_f1:.3f} "
             f"learning_rate={learning_rate:.2e}"
         )
-        if validation_loss < best_validation_loss:
+        improved = (
+            validation_macro_f1 > best_validation_macro_f1 + 1e-6
+            or (
+                abs(validation_macro_f1 - best_validation_macro_f1) <= 1e-6
+                and validation_loss < best_validation_loss
+            )
+        )
+        if improved:
             best_validation_loss = validation_loss
             best_accuracy = accuracy
+            best_validation_macro_f1 = validation_macro_f1
             epochs_without_improvement = 0
             output = Path(args.output)
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -231,6 +281,10 @@ def main():
                 "training_examples": len(train_rows),
                 "training_class_counts": {label: int(class_counts[i].item()) for i, label in enumerate(LABELS)},
                 "sampling_power": args.sampling_power,
+                "weight_decay": args.weight_decay,
+                "label_smoothing": args.label_smoothing,
+                "selection_metric": "validation_macro_f1_then_loss",
+                "validation_macro_f1": best_validation_macro_f1,
                 "validation_data": args.validation_data,
                 "validation_examples": len(valid_rows),
                 "validation_loss": best_validation_loss,
@@ -249,6 +303,7 @@ def main():
 
     print(f"best_validation_loss={best_validation_loss:.4f}")
     print(f"best_validation_accuracy={best_accuracy:.3f}")
+    print(f"best_validation_macro_f1={best_validation_macro_f1:.3f}")
     print("Reminder: validate on a separate, topic-disjoint test set before using predictions.")
 
 
