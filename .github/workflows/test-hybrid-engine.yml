@@ -33,6 +33,6 @@ jobs:
       - name: Install CPU test dependency
         run: python -m pip install --upgrade pip torch --index-url https://download.pytorch.org/whl/cpu
       - name: Compile Python modules
-        run: python -m py_compile lionai_hybrid.py lionai_scratch.py training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py tests/test_lionai_hybrid.py tests/test_lionai_scratch.py tests/test_lionai_scratch_inference.py tests/test_lionai_scratch_evaluation.py
+        run: python -m py_compile lionai_hybrid.py lionai_scratch.py training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py training/audit_scratch_data.py tests/test_lionai_hybrid.py tests/test_lionai_scratch.py tests/test_lionai_scratch_inference.py tests/test_lionai_scratch_evaluation.py tests/test_lionai_scratch_data_audit.py
       - name: Run project tests
         run: python -m unittest discover -s tests -v
