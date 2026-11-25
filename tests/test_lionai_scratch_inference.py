@@ -28,6 +28,7 @@ class ScratchInferenceTests(unittest.TestCase):
             result = predict("مدارک مدرسه", "notes.pdf", path, threshold=0.0)
 
         self.assertEqual(result["original_name"], "notes.pdf")
+        self.assertEqual(result["extension"], "pdf")
         self.assertIn(result["predicted_category"], labels)
         self.assertNotIn("suggested_path", result)
         self.assertTrue(result["safety"]["metadata_only"])
