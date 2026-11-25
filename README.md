@@ -20,7 +20,7 @@ python -m venv .venv
 # Linux: source .venv/bin/activate
 python -m pip install -r training/requirements-scratch.txt
 python training/audit_scratch_data.py
-python training/train_scratch.py --epochs 30 --patience 6
+python training/train_scratch.py --epochs 30 --patience 6 --history-output artifacts/training-history.json
 
 # After a local training run, classify one filename (metadata only):
 python training/predict_scratch.py --topic "مدارک مدرسه" --filename "biology_notes.pdf"
@@ -36,7 +36,7 @@ The training script uses CUDA when available and otherwise falls back to CPU. St
 - `lionai.c`: native organizer and experimental Naive Bayes baseline.
 - `lionai_hybrid.py`: metadata-only preview engine with deterministic classification and a strictly validated optional model hook. It never reads or moves files.
 - `lionai_scratch.py`: custom byte tokenizer and randomly initialized Transformer classifier.
-- `training/train_scratch.py`: supervised training pipeline with deterministic topic-disjoint splitting, validation-loss checkpoint selection, learning-rate scheduling, early stopping and reproducible checkpoint metadata.
+- `training/train_scratch.py`: supervised training pipeline with deterministic topic-disjoint splitting, validation-loss checkpoint selection, learning-rate scheduling, early stopping, atomic checkpoint writes and a per-epoch JSON history report.
 - `training/predict_scratch.py`: safe local inference; emits a category and confidence only, never a destination path or filesystem action.
 - `training/evaluate_scratch.py`: independent evaluation with per-class precision/recall/F1 and a confusion matrix; rejects topic overlap with the training set.
 - `training/audit_scratch_data.py`: audits dataset schemas, class coverage, duplicate samples in both datasets, filename/extension consistency, plain filenames and train/evaluation topic separation.
