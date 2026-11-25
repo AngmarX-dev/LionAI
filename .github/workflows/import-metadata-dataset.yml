@@ -12,6 +12,9 @@ on:
       - "tests/test_lionai_scratch.py"
       - "training/sampling.py"
       - "training/evaluate_scratch.py"
+      - "training/export_gguf.py"
+      - "training/lionai_gguf_runtime.py"
+      - "tests/test_lionai_gguf_runtime.py"
       - "training/import_github_metadata.py"
       - "training/github_metadata_sources.txt"
       - "training/github_metadata_eval_sources.txt"
@@ -113,7 +116,14 @@ jobs:
             --test training/external/lionai_github_independent_eval.jsonl \
             --train training/external/splits/train.jsonl \
             --output artifacts/independent-evaluation-report.json
-      - name: Upload complete corpus, provenance, model and evaluation
+      - name: Export and validate LionAI GGUF v2
+        run: |
+          python training/export_gguf.py \
+            --checkpoint artifacts/lionai-scratch.pt \
+            --output artifacts/LionAI-scratch-v2.gguf
+      - name: Run GGUF runtime tests
+        run: python -m unittest discover -s tests -p test_lionai_gguf_runtime.py -v
+      - name: Upload complete corpus, provenance, model, GGUF and evaluation
         uses: actions/upload-artifact@v4
         with:
           name: lionai-real-metadata-model-and-evaluation
@@ -128,6 +138,8 @@ jobs:
             training/external/lionai_metadata_corpus_report.json
             training/external/splits/
             artifacts/lionai-scratch.pt
+            artifacts/LionAI-scratch-v2.gguf
+            artifacts/LionAI-scratch-v2.gguf.json
             artifacts/training-history.json
             artifacts/evaluation-report.json
           if-no-files-found: error
