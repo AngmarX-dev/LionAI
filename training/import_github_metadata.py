@@ -37,12 +37,15 @@ EXTENSIONS = {
     "Archives": {"zip", "tar", "gz", "bz2", "xz", "7z", "rar", "zst", "tgz", "whl"},
     "Installers": {"exe", "msi", "msix", "dmg", "pkg", "deb", "rpm", "appimage", "apk", "ipa"},
     "Fonts": {"ttf", "otf", "woff", "woff2", "eot"},
-    "Databases": {"db", "sqlite", "sqlite3", "mdb", "accdb", "duckdb"},
+    "Databases": {"db", "sqlite", "sqlite3", "mdb", "accdb", "duckdb", "sql"},
     "Config": {"json", "xml", "yaml", "yml", "toml", "ini", "cfg", "conf", "env", "properties", "lock", "gitignore", "gitattributes", "editorconfig"},
-    "Source": {"py", "pyi", "js", "jsx", "ts", "tsx", "java", "c", "h", "cc", "cpp", "hpp", "cs", "go", "rs", "rb", "php", "swift", "kt", "kts", "scala", "sh", "ps1", "bat", "lua", "r", "m", "mm", "dart", "vue", "svelte", "sql"},
+    "Source": {"py", "pyi", "js", "jsx", "ts", "tsx", "java", "c", "h", "cc", "cpp", "hpp", "cs", "go", "rs", "rb", "php", "swift", "kt", "kts", "scala", "sh", "ps1", "bat", "lua", "r", "m", "mm", "dart", "vue", "svelte"},
 }
 REPORT_WORDS = {"report", "reports", "audit", "summary", "benchmark", "results"}
-SENSITIVE_WORDS = {"secret", "password", "credential", "private", "token", "id_rsa", "id_ed25519"}
+SENSITIVE_WORDS = {
+    "secret", "secrets", "password", "passwords", "credential", "credentials",
+    "private", "token", "tokens", "id_rsa", "id_ed25519",
+}
 SENSITIVE_SUFFIXES = {".pem", ".p12", ".pfx", ".key", ".keystore"}
 
 
@@ -76,7 +79,7 @@ def api_get(path: str, token: str, retries: int = 4) -> dict:
 def classify(filename: str, path: str) -> tuple[str, str] | None:
     name = filename.casefold()
     lower_path = path.casefold()
-    if any(word in lower_path for word in SENSITIVE_WORDS):
+    if any(part in SENSITIVE_WORDS for part in re.split(r"[^a-z0-9]+", lower_path)):
         return None
     if any(name.endswith(suffix) for suffix in SENSITIVE_SUFFIXES):
         return None
