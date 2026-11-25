@@ -32,8 +32,15 @@ def load_dataset(path: Path) -> list[dict[str, str]]:
             raise ValueError(f"{path}:{line_number}: filename must be a plain filename")
         if row["label"] not in LABELS:
             raise ValueError(f"{path}:{line_number}: unknown label {row['label']!r}")
-        expected_extension = Path(name).suffix.casefold().lstrip(".")
-        if row["extension"].casefold().lstrip(".") != expected_extension:
+        declared_extension = row["extension"].casefold().lstrip(".")
+        # Keep compound suffixes (for example, tar.gz) intact when they match
+        # the actual filename; Path.suffix alone would reduce them to only gz.
+        expected_extension = (
+            declared_extension
+            if declared_extension and name.casefold().endswith("." + declared_extension)
+            else Path(name).suffix.casefold().lstrip(".")
+        )
+        if declared_extension != expected_extension:
             raise ValueError(f"{path}:{line_number}: extension does not match filename suffix")
         rows.append(row)
     if not rows:
