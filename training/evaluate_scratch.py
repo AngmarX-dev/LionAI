@@ -5,32 +5,19 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 
 from lionai_scratch import LionAITokenizer
 from training.predict_scratch import load_checkpoint
-from training.train_scratch import LABELS
+from training.audit_scratch_data import LABELS, load_dataset
 
 
 def read_rows(path: Path) -> list[dict[str, str]]:
-    rows = []
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if set(row) != {"topic", "filename", "extension", "label"}:
-            raise ValueError(f"{path}:{line_number}: expected topic, filename, extension, label only")
-        if not all(isinstance(row[key], str) and row[key].strip() for key in ("topic", "filename", "label")):
-            raise ValueError(f"{path}:{line_number}: topic, filename and label must be non-empty strings")
-        if not isinstance(row["extension"], str) or row["label"] not in LABELS:
-            raise ValueError(f"{path}:{line_number}: invalid extension or unknown label")
-        if "/" in row["filename"] or "\\" in row["filename"]:
-            raise ValueError(f"{path}:{line_number}: filename must be metadata, not a path")
-        rows.append(row)
-    if not rows:
-        raise ValueError(f"{path}: no evaluation examples found")
-    return rows
+    return load_dataset(path)
 
 
 def evaluate(checkpoint: Path, test_file: Path, train_file: Path | None = None) -> dict:
