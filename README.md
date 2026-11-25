@@ -30,13 +30,13 @@ Training uses CUDA when available and otherwise CPU. A completed training run do
 
 The project uses the official Hugging Face Datasets library (https://github.com/huggingface/datasets) to load and normalize external metadata datasets. The library is a data-loading/processing toolkit, **not itself a training dataset**. LionAI installs the released Python package from PyPI; it does not clone or vendor the full library source tree.
 
-A first supplemental source is Smart Downloads Organiser Metadata (https://huggingface.co/datasets/AnodemTheGr8t/file_organiser_metadata). Its card describes synthetic English metadata such as filename, extension, folder hint, size, and a seven-class label, and declares CC0-1.0. Its card and viewer have reported different row counts, so the importer reports the actual loaded count.
+A real-world source is also collected from curated public GitHub repositories. The importer checks each repository's SPDX license against an allowlist, records repository revision/license provenance, and reads Git tree metadata only; it does not download file blobs or inspect file contents. Filenames are deduplicated within each repository, and repository identity is the topic boundary for leakage-resistant splits. Labels are inferred from extensions and report-like names, so this is weak supervision rather than human-verified ground truth.\n\nA first supplemental synthetic source is Smart Downloads Organiser Metadata (https://huggingface.co/datasets/AnodemTheGr8t/file_organiser_metadata). Its card describes synthetic English metadata such as filename, extension, folder hint, size, and a seven-class label, and declares CC0-1.0. Its card and viewer have reported different row counts, so the importer reports the actual loaded count.
 
     python training/import_hf_dataset.py
     # Optional bounded streaming import:
     python training/import_hf_dataset.py --max-rows 5000
 
-The importer loads metadata with remote code execution disabled, validates plain filenames, maps source labels to LionAI classes, deduplicates rows, and writes to ignored local directory training/external/. Imported data remains supplemental until reviewed.
+The Hugging Face importer loads metadata with remote code execution disabled, validates plain filenames, maps source labels to LionAI classes, deduplicates rows, and writes to ignored local directory training/external/. The GitHub importer uses only repository metadata/tree APIs and writes filename/extension labels to the same ignored directory. Imported data remains supplemental until audited.
 
 ## Build a metadata corpus
 
