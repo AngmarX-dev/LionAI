@@ -12,6 +12,7 @@ on:
       - "training/evaluate_scratch.py"
       - "training/import_github_metadata.py"
       - "training/github_metadata_sources.txt"
+      - "training/github_metadata_eval_sources.txt"
   workflow_dispatch:
     inputs:
       max_rows:
@@ -49,6 +50,16 @@ jobs:
           python training/import_github_metadata.py \
             --max-files-per-repo 1500 \
             --max-repos 0
+      - name: Import repository-disjoint independent evaluation metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python training/import_github_metadata.py \
+            --sources training/github_metadata_eval_sources.txt \
+            --output training/external/lionai_github_independent_eval.jsonl \
+            --report training/external/lionai_github_independent_eval_report.json \
+            --max-files-per-repo 3000 \
+            --max-repos 0
       - name: Merge and audit all metadata sources
         run: |
           python training/build_metadata_corpus.py \
@@ -84,6 +95,13 @@ jobs:
             --test training/external/splits/test.jsonl \
             --train training/external/splits/train.jsonl \
             --output artifacts/evaluation-report.json
+      - name: Evaluate on repositories never used for training
+        run: |
+          python training/evaluate_scratch.py \
+            --checkpoint artifacts/lionai-scratch.pt \
+            --test training/external/lionai_github_independent_eval.jsonl \
+            --train training/external/splits/train.jsonl \
+            --output artifacts/independent-evaluation-report.json
       - name: Upload complete corpus, provenance, model and evaluation
         uses: actions/upload-artifact@v4
         with:
@@ -92,6 +110,9 @@ jobs:
             training/external/lionai_file_organiser_metadata.jsonl
             training/external/lionai_github_metadata.jsonl
             training/external/lionai_github_metadata_report.json
+            training/external/lionai_github_independent_eval.jsonl
+            training/external/lionai_github_independent_eval_report.json
+            artifacts/independent-evaluation-report.json
             training/external/lionai_metadata_corpus.jsonl
             training/external/lionai_metadata_corpus_report.json
             training/external/splits/
