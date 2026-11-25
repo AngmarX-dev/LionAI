@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import random
 from pathlib import Path
 import sys
@@ -91,6 +92,7 @@ def main():
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--patience", type=int, default=6)
+    parser.add_argument("--history-output", default="artifacts/training-history.json")
     args = parser.parse_args()
     if args.epochs < 1 or args.batch_size < 1 or args.patience < 1 or args.learning_rate <= 0:
         parser.error("epochs, batch-size and patience must be positive; learning-rate must be greater than zero")
@@ -122,6 +124,7 @@ def main():
     best_validation_loss = float("inf")
     best_accuracy = 0.0
     epochs_without_improvement = 0
+    history = []
 
     for epoch in range(1, args.epochs + 1):
         model.train()
@@ -147,6 +150,24 @@ def main():
         accuracy = correct / count if count else 0.0
         scheduler.step(validation_loss)
         learning_rate = optimizer.param_groups[0]["lr"]
+        epoch_record = {
+            "epoch": epoch,
+            "train_loss": round(total_loss / max(1, len(train_loader)), 6),
+            "validation_loss": round(validation_loss, 6),
+            "validation_accuracy": round(accuracy, 6),
+            "learning_rate": learning_rate,
+        }
+        history.append(epoch_record)
+        history_path = Path(args.history_output)
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        history_tmp = history_path.with_name(history_path.name + ".tmp")
+        history_tmp.write_text(json.dumps({
+            "model": "lionai-scratch-transformer-v1",
+            "seed": args.seed,
+            "initialized_from": "random",
+            "history": history,
+        }, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        history_tmp.replace(history_path)
         print(
             f"epoch={epoch} train_loss={total_loss / max(1, len(train_loader)):.4f} "
             f"validation_loss={validation_loss:.4f} validation_accuracy={accuracy:.3f} "
@@ -160,7 +181,7 @@ def main():
             output.parent.mkdir(parents=True, exist_ok=True)
             checkpoint_state = {key: value.detach().cpu().clone()
                                 for key, value in model.state_dict().items()}
-            torch.save({
+            checkpoint = {
                 "state_dict": checkpoint_state,
                 "config": config.__dict__,
                 "labels": LABELS,
@@ -172,7 +193,10 @@ def main():
                 "validation_accuracy": best_accuracy,
                 "seed": args.seed,
                 "epoch": epoch,
-            }, output)
+            }
+            checkpoint_tmp = output.with_name(output.name + ".tmp")
+            torch.save(checkpoint, checkpoint_tmp)
+            checkpoint_tmp.replace(output)
         else:
             epochs_without_improvement += 1
             if epochs_without_improvement >= args.patience:
