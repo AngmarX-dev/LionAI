@@ -48,14 +48,15 @@ def _topic_folder(topic: str) -> str:
     return slug or "Organized"
 
 def _valid_filename(name: object) -> bool:
-    return isinstance(name, str) and bool(name.strip()) and name not in {".",".."} and "/" not in name and "\\" not in name and "\x00" not in name
+    return (isinstance(name, str) and bool(name.strip()) and name not in {".",".."}
+            and "/" not in name and "\\" not in name and not any(ord(ch) < 32 or ch in '<>:"|?*' for ch in name))
 
 def _safe_relative_path(value: object, original_name: str) -> bool:
     if not isinstance(value, str) or not value or "\\" in value or "\x00" in value: return False
     path = PurePosixPath(value)
     return (not path.is_absolute() and bool(path.parts)
             and all(part not in {"", ".", ".."} for part in path.parts)
-            and path.name == original_name and ":" not in path.parts[0])
+            and path.name == original_name and all(not any(ch in '<>:"|?*' for ch in part) for part in path.parts))
 
 def _classify(name: str) -> tuple[str, float, str]:
     tokens = _tokens(PurePosixPath(name).stem)
@@ -72,14 +73,17 @@ ModelProposer = Callable[[str, list[dict[str, str]]], dict[str, Any]]
 def _model_suggestions(topic: str, names: list[str], proposer: ModelProposer | None) -> dict[str, dict[str, Any]]:
     if proposer is None: return {}
     metadata = [{"name": n, "extension": PurePosixPath(n).suffix.casefold()} for n in names]
-    response = proposer(topic, metadata)
+    try:
+        response = proposer(topic, metadata)
+    except Exception:
+        return {}
     if not isinstance(response, dict) or not isinstance(response.get("files"), list): return {}
     accepted = {}
     for item in response["files"]:
         if not isinstance(item, dict): continue
         name, path = item.get("original_name"), item.get("suggested_path")
         confidence, review = item.get("confidence"), item.get("needs_review")
-        if (isinstance(name, str) and name in names and name not in accepted and _safe_relative_path(path, name)
+        if (isinstance(name, str) and name in names and name not in accepted and _safe_relative_path(path, name) and PurePosixPath(path).parts[0] == _topic_folder(topic)
             and isinstance(confidence, (int,float)) and not isinstance(confidence,bool)
             and 0 <= confidence <= 1 and isinstance(review,bool) and not review
             and confidence >= MODEL_CONFIDENCE_THRESHOLD):
