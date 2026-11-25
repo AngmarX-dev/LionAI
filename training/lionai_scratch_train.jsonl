@@ -43,3 +43,107 @@
 {"topic":"misc","filename":"file_001.blob","extension":"blob","label":"Other/Review"}
 {"topic":"unknown","filename":"untitled","extension":"","label":"Other/Review"}
 {"topic":"misc","filename":"data.bin","extension":"bin","label":"Other/Review"}
+{"topic":"عکاسی طبیعت","filename":"waterfall_01.jpg","extension":"jpg","label":"Images"}
+{"topic":"طراحی پوستر","filename":"event_poster.webp","extension":"webp","label":"Images"}
+{"topic":"اسکن نقشه","filename":"campus_map.tif","extension":"tif","label":"Images"}
+{"topic":"آیکون‌های بازی","filename":"inventory_icon.ico","extension":"ico","label":"Images"}
+{"topic":"تصاویر محصول","filename":"item_front.avif","extension":"avif","label":"Images"}
+{"topic":"طرح‌های برداری","filename":"diagram.eps","extension":"eps","label":"Images"}
+{"topic":"آلبوم سفر","filename":"city_evening.heic","extension":"heic","label":"Images"}
+{"topic":"تصاویر سه‌بعدی","filename":"scene_preview.exr","extension":"exr","label":"Images"}
+{"topic":"قراردادهای کاری","filename":"service_agreement.odt","extension":"odt","label":"Documents"}
+{"topic":"کتاب‌های الکترونیکی","filename":"manual.epub","extension":"epub","label":"Documents"}
+{"topic":"اسناد اسکن‌شده","filename":"passport_scan.pdf","extension":"pdf","label":"Documents"}
+{"topic":"یادداشت‌های روزانه","filename":"journal.rtf","extension":"rtf","label":"Documents"}
+{"topic":"مستندات فنی","filename":"architecture.adoc","extension":"adoc","label":"Documents"}
+{"topic":"متن پژوهشی","filename":"abstract.tex","extension":"tex","label":"Documents"}
+{"topic":"فهرست مطالعه","filename":"reading_list.docx","extension":"docx","label":"Documents"}
+{"topic":"نامه‌های اداری","filename":"request_letter.txt","extension":"txt","label":"Documents"}
+{"topic":"خروجی آزمایشگاه","filename":"lab_export.tsv","extension":"tsv","label":"Data"}
+{"topic":"داده‌های آب‌وهوا","filename":"weather_data.parquet","extension":"parquet","label":"Data"}
+{"topic":"داده‌های مکانی","filename":"locations.geojson","extension":"geojson","label":"Data"}
+{"topic":"جدول‌های آماری","filename":"population.feather","extension":"feather","label":"Data"}
+{"topic":"داده‌های آموزشی","filename":"training_rows.jsonl","extension":"jsonl","label":"Data"}
+{"topic":"پایش شبکه","filename":"traffic.ndjson","extension":"ndjson","label":"Data"}
+{"topic":"گزارش سنسورها","filename":"device_metrics.csv","extension":"csv","label":"Data"}
+{"topic":"تحلیل فروشگاه","filename":"orders.xlsx","extension":"xlsx","label":"Data"}
+{"topic":"ضبط سخنرانی","filename":"keynote.m4a","extension":"m4a","label":"Audio"}
+{"topic":"افکت‌های صوتی","filename":"ui_click.aiff","extension":"aiff","label":"Audio"}
+{"topic":"تمرین زبان","filename":"vocabulary.aac","extension":"aac","label":"Audio"}
+{"topic":"صدای محیط","filename":"rain_sound.opus","extension":"opus","label":"Audio"}
+{"topic":"ضبط استودیو","filename":"voice_take.wav","extension":"wav","label":"Audio"}
+{"topic":"آرشیو رادیو","filename":"broadcast.wma","extension":"wma","label":"Audio"}
+{"topic":"میکس موسیقی","filename":"final_mix.aif","extension":"aif","label":"Audio"}
+{"topic":"صدای بازی","filename":"ambient_bank.mp3","extension":"mp3","label":"Audio"}
+{"topic":"فیلم کوتاه","filename":"short_film.m4v","extension":"m4v","label":"Video"}
+{"topic":"ضبط وبینار","filename":"webinar_recording.avi","extension":"avi","label":"Video"}
+{"topic":"پروژه تدوین","filename":"sequence.mxf","extension":"mxf","label":"Video"}
+{"topic":"ویدئوی آموزشی","filename":"lesson_clip.mp4","extension":"mp4","label":"Video"}
+{"topic":"تصاویر متحرک","filename":"animated_demo.gif","extension":"gif","label":"Video"}
+{"topic":"پخش آزمایشی","filename":"stream_capture.ts","extension":"ts","label":"Video"}
+{"topic":"فیلم دوربین","filename":"camera_take.mts","extension":"mts","label":"Video"}
+{"topic":"پیش‌نمایش تدوین","filename":"rough_cut.mpg","extension":"mpg","label":"Video"}
+{"topic":"بسته منابع","filename":"resource_pack.tar","extension":"tar","label":"Archives"}
+{"topic":"فشرده‌سازی قدیمی","filename":"legacy_backup.bz2","extension":"bz2","label":"Archives"}
+{"topic":"بسته پروژه","filename":"project_files.xz","extension":"xz","label":"Archives"}
+{"topic":"نسخه پشتیبان","filename":"snapshot.zst","extension":"zst","label":"Archives"}
+{"topic":"آرشیو اسناد","filename":"documents.cab","extension":"cab","label":"Archives"}
+{"topic":"انتقال فایل","filename":"transfer.lzh","extension":"lzh","label":"Archives"}
+{"topic":"بسته توزیع","filename":"source_bundle.tgz","extension":"tgz","label":"Archives"}
+{"topic":"آرشیو شخصی","filename":"personal_archive.rar","extension":"rar","label":"Archives"}
+{"topic":"برنامه نویسی Rust","filename":"main.rs","extension":"rs","label":"Source"}
+{"topic":"ماژول جاوا","filename":"PaymentService.java","extension":"java","label":"Source"}
+{"topic":"اسکریپت شل","filename":"deploy.sh","extension":"sh","label":"Source"}
+{"topic":"پروژه سی‌شارپ","filename":"Program.cs","extension":"cs","label":"Source"}
+{"topic":"کد روبی","filename":"worker.rb","extension":"rb","label":"Source"}
+{"topic":"کد Swift","filename":"AppDelegate.swift","extension":"swift","label":"Source"}
+{"topic":"ماژول PHP","filename":"router.php","extension":"php","label":"Source"}
+{"topic":"کد Lua","filename":"game_logic.lua","extension":"lua","label":"Source"}
+{"topic":"تنظیمات پایتون","filename":"pyproject.toml","extension":"toml","label":"Config"}
+{"topic":"پیکربندی وب‌سرور","filename":"nginx.conf","extension":"conf","label":"Config"}
+{"topic":"تنظیمات محیط","filename":"development.env","extension":"env","label":"Config"}
+{"topic":"پیکربندی کانتینر","filename":"Containerfile","extension":"","label":"Config"}
+{"topic":"تنظیمات CI","filename":"pipeline.yml","extension":"yml","label":"Config"}
+{"topic":"پیکربندی سیستم","filename":"system.ini","extension":"ini","label":"Config"}
+{"topic":"تنظیمات سرویس","filename":"service.xml","extension":"xml","label":"Config"}
+{"topic":"پیکربندی برنامه","filename":"app.properties","extension":"properties","label":"Config"}
+{"topic":"بسته لینوکس","filename":"browser.rpm","extension":"rpm","label":"Installers"}
+{"topic":"نصب‌کننده مک","filename":"designer.dmg","extension":"dmg","label":"Installers"}
+{"topic":"بسته اندروید","filename":"mobile.aab","extension":"aab","label":"Installers"}
+{"topic":"بسته آرشیوی نصب","filename":"tool.pkg","extension":"pkg","label":"Installers"}
+{"topic":"نصب‌کننده ویندوز","filename":"driver.exe","extension":"exe","label":"Installers"}
+{"topic":"بسته نرم‌افزار","filename":"utility.snap","extension":"snap","label":"Installers"}
+{"topic":"بسته فلت‌پک","filename":"player.flatpak","extension":"flatpak","label":"Installers"}
+{"topic":"بسته اپلیکیشن","filename":"client.appimage","extension":"appimage","label":"Installers"}
+{"topic":"فونت فارسی","filename":"Vazirmatn.ttf","extension":"ttf","label":"Fonts"}
+{"topic":"فونت متغیر","filename":"InterVariable.ttf","extension":"ttf","label":"Fonts"}
+{"topic":"فونت چاپ","filename":"serif.pfb","extension":"pfb","label":"Fonts"}
+{"topic":"فونت وب","filename":"heading.woff","extension":"woff","label":"Fonts"}
+{"topic":"فونت قدیمی","filename":"legacy.fon","extension":"fon","label":"Fonts"}
+{"topic":"فونت اپن‌تایپ","filename":"display.otf","extension":"otf","label":"Fonts"}
+{"topic":"فونت نمادها","filename":"symbols.eot","extension":"eot","label":"Fonts"}
+{"topic":"فونت رابط","filename":"regular.woff2","extension":"woff2","label":"Fonts"}
+{"topic":"دیتابیس برنامه","filename":"cache.db","extension":"db","label":"Databases"}
+{"topic":"پشتیبان پایگاه داده","filename":"backup.dump","extension":"dump","label":"Databases"}
+{"topic":"داده PostgreSQL","filename":"cluster.backup","extension":"backup","label":"Databases"}
+{"topic":"داده Redis","filename":"cache.rdb","extension":"rdb","label":"Databases"}
+{"topic":"داده MongoDB","filename":"records.bson","extension":"bson","label":"Databases"}
+{"topic":"داده سطح پایین","filename":"store.mdb","extension":"mdb","label":"Databases"}
+{"topic":"اسکریپت ساخت جدول","filename":"tables.sql","extension":"sql","label":"Databases"}
+{"topic":"دیتابیس محلی","filename":"notes.realm","extension":"realm","label":"Databases"}
+{"topic":"گزارش عملکرد","filename":"performance_summary.pdf","extension":"pdf","label":"Reports"}
+{"topic":"گزارش پروژه","filename":"delivery_status.docx","extension":"docx","label":"Reports"}
+{"topic":"گزارش هزینه","filename":"expense_breakdown.xlsx","extension":"xlsx","label":"Reports"}
+{"topic":"گزارش ماهانه","filename":"monthly_review.odt","extension":"odt","label":"Reports"}
+{"topic":"گزارش کیفیت","filename":"quality_metrics.csv","extension":"csv","label":"Reports"}
+{"topic":"گزارش مدیریتی","filename":"executive_brief.pptx","extension":"pptx","label":"Reports"}
+{"topic":"گزارش پشتیبانی","filename":"support_tickets.json","extension":"json","label":"Reports"}
+{"topic":"گزارش بازرسی","filename":"inspection_notes.txt","extension":"txt","label":"Reports"}
+{"topic":"فایل ناشناخته آلفا","filename":"asset_7.qzx","extension":"qzx","label":"Other/Review"}
+{"topic":"محتوای دودویی ناشناس","filename":"raw_payload.dat","extension":"dat","label":"Other/Review"}
+{"topic":"پسوند ناشناخته بتا","filename":"document.zzz","extension":"zzz","label":"Other/Review"}
+{"topic":"فایل موقت نامشخص","filename":"temporary.tmp","extension":"tmp","label":"Other/Review"}
+{"topic":"داده مبهم","filename":"sample.unknownx","extension":"unknownx","label":"Other/Review"}
+{"topic":"فایل بدون پسوند دوم","filename":"mystery","extension":"","label":"Other/Review"}
+{"topic":"بسته نامشخص","filename":"blob.packx","extension":"packx","label":"Other/Review"}
+{"topic":"خروجی ناشناخته","filename":"output.unclassified","extension":"unclassified","label":"Other/Review"}
