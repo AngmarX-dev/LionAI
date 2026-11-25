@@ -42,6 +42,7 @@ def _topic_folder(topic: str) -> str:
     chars = []
     for char in topic.strip():
         if char.isalnum(): chars.append(char)
+        elif char == "\\u200c": chars.append(char)
         elif char.isspace() or char in "-_.": chars.append("-")
     slug = re.sub(r"-+", "-", "".join(chars)).strip("-")[:48].strip("-")
     return slug or "Organized"
@@ -78,7 +79,7 @@ def _model_suggestions(topic: str, names: list[str], proposer: ModelProposer | N
         if not isinstance(item, dict): continue
         name, path = item.get("original_name"), item.get("suggested_path")
         confidence, review = item.get("confidence"), item.get("needs_review")
-        if (name in names and name not in accepted and _safe_relative_path(path, name)
+        if (isinstance(name, str) and name in names and name not in accepted and _safe_relative_path(path, name)
             and isinstance(confidence, (int,float)) and not isinstance(confidence,bool)
             and 0 <= confidence <= 1 and isinstance(review,bool) and not review
             and confidence >= MODEL_CONFIDENCE_THRESHOLD):
