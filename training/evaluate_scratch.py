@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import torch
 
-from lionai_scratch import LionAITokenizer
+from lionai_scratch import LionAITokenizer, model_name
 from training.predict_scratch import load_checkpoint
 from training.audit_scratch_data import LABELS, load_dataset
 from training.calibration import load_temperature
@@ -78,7 +78,7 @@ def evaluate(checkpoint: Path, test_file: Path, train_file: Path | None = None,
             mean_accuracy = sum(item[1] for item in members) / len(members)
             ece += len(members) / len(confidence_records) * abs(mean_confidence - mean_accuracy)
     return {
-        "model": "lionai-scratch-transformer-v1",
+        "model": model_name(config),
         "evaluation_examples": len(rows),
         "accuracy": round(accuracy, 4),
         "calibrated": calibration_file is not None,
