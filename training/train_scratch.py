@@ -93,6 +93,8 @@ def main():
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--patience", type=int, default=6)
     parser.add_argument("--history-output", default="artifacts/training-history.json")
+    parser.add_argument("--validation-data", default=None,
+                        help="Optional independent topic-disjoint validation JSONL; when set, train on all rows in --data")
     args = parser.parse_args()
     if args.epochs < 1 or args.batch_size < 1 or args.patience < 1 or args.learning_rate <= 0:
         parser.error("epochs, batch-size and patience must be positive; learning-rate must be greater than zero")
@@ -104,8 +106,22 @@ def main():
 
     rows = load_dataset(Path(args.data))
     if len(rows) < 20:
-        raise SystemExit("At least 20 curated examples are required before training.")
-    train_rows, valid_rows = split_by_topic(rows, args.seed)
+        raise SystemExit("At least 20 metadata examples are required before training.")
+    if args.validation_data:
+        train_rows = rows
+        valid_rows = load_dataset(Path(args.validation_data))
+        train_topics = {row["topic"].casefold().strip() for row in train_rows}
+        valid_topics = {row["topic"].casefold().strip() for row in valid_rows}
+        overlap = sorted(train_topics & valid_topics)
+        if overlap:
+            raise SystemExit("Train/validation topic leakage: " + ", ".join(overlap[:10]))
+        for split_name, split_rows in (("train", train_rows), ("validation", valid_rows)):
+            present = {row["label"] for row in split_rows}
+            missing = set(LABELS) - present
+            if missing:
+                raise SystemExit(f"{split_name} split is missing classes: " + ", ".join(sorted(missing)))
+    else:
+        train_rows, valid_rows = split_by_topic(rows, args.seed)
     validation_topics = len({row["topic"].casefold().strip() for row in valid_rows})
     print(f"train_examples={len(train_rows)} validation_examples={len(valid_rows)} validation_topics={validation_topics}")
     tokenizer = LionAITokenizer()
@@ -119,7 +135,18 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
-    criterion = nn.CrossEntropyLoss()
+    class_counts = torch.tensor(
+        [sum(row["label"] == label for row in train_rows) for label in LABELS],
+        dtype=torch.float32, device=device,
+    )
+    if torch.any(class_counts == 0):
+        missing = [LABELS[i] for i, count in enumerate(class_counts.tolist()) if count == 0]
+        raise SystemExit("Training data is missing classes: " + ", ".join(missing))
+    # Mild inverse-square-root weighting reduces domination by frequent synthetic labels
+    # without letting tiny classes produce extreme gradients.
+    class_weights = torch.sqrt(class_counts.sum() / (len(LABELS) * class_counts))
+    class_weights = class_weights / class_weights.mean()
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=2)
     best_validation_loss = float("inf")
     best_accuracy = 0.0
@@ -188,6 +215,8 @@ def main():
                 "tokenizer": "utf8-byte-v1",
                 "initialized_from": "random",
                 "training_examples": len(train_rows),
+                "training_class_counts": {label: int(class_counts[i].item()) for i, label in enumerate(LABELS)},
+                "validation_data": args.validation_data,
                 "validation_examples": len(valid_rows),
                 "validation_loss": best_validation_loss,
                 "validation_accuracy": best_accuracy,
