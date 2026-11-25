@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import torch
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
+from training.calibration import load_temperature
 
 CONFIDENCE_THRESHOLD = 0.75
 
@@ -35,13 +36,17 @@ def load_checkpoint(path: Path, device: torch.device):
 
 
 def predict(topic: str, filename: str, checkpoint_path: str | Path,
-            threshold: float = CONFIDENCE_THRESHOLD) -> dict:
+            threshold: float = CONFIDENCE_THRESHOLD,
+            calibration_path: str | Path | None = None,
+            margin_threshold: float = 0.10) -> dict:
     if not isinstance(topic, str) or not topic.strip():
         raise ValueError("topic must be a non-empty string")
     if not isinstance(filename, str) or not filename.strip() or "/" in filename or "\\" in filename:
         raise ValueError("filename must be a plain filename, not a path")
     if not 0.0 <= threshold <= 1.0:
         raise ValueError("threshold must be between 0 and 1")
+    if not 0.0 <= margin_threshold <= 1.0:
+        raise ValueError("margin_threshold must be between 0 and 1")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, labels, config = load_checkpoint(Path(checkpoint_path), device)
@@ -51,12 +56,16 @@ def predict(topic: str, filename: str, checkpoint_path: str | Path,
         [{"topic": topic, "filename": filename, "extension": extension}],
         max_length=config.max_length,
     )
+    temperature = load_temperature(Path(calibration_path), labels) if calibration_path else 1.0
     with torch.inference_mode():
-        probabilities = torch.softmax(model(ids.to(device), mask.to(device)), dim=-1)[0]
-    confidence, index = probabilities.max(dim=0)
+        logits = model(ids.to(device), mask.to(device))[0]
+        probabilities = torch.softmax(logits / temperature, dim=-1)
+    top_probabilities, top_indices = probabilities.topk(k=2)
+    confidence = top_probabilities[0]
     score = float(confidence.item())
-    label = labels[int(index.item())]
-    needs_review = score < threshold or label == "Other/Review"
+    margin = float((top_probabilities[0] - top_probabilities[1]).item())
+    label = labels[int(top_indices[0].item())]
+    needs_review = score < threshold or margin < margin_threshold or label == "Other/Review"
     if needs_review:
         label = "Other/Review"
     return {
@@ -65,6 +74,9 @@ def predict(topic: str, filename: str, checkpoint_path: str | Path,
         "extension": extension,
         "predicted_category": label,
         "confidence": round(score, 6),
+        "confidence_margin": round(margin, 6),
+        "temperature": round(temperature, 6),
+        "calibrated": calibration_path is not None,
         "needs_review": needs_review,
         "model": "lionai-scratch-transformer-v1",
         "safety": {
@@ -83,8 +95,11 @@ def main() -> int:
     parser.add_argument("--topic", required=True)
     parser.add_argument("--filename", required=True)
     parser.add_argument("--threshold", type=float, default=CONFIDENCE_THRESHOLD)
+    parser.add_argument("--margin-threshold", type=float, default=0.10)
+    parser.add_argument("--calibration", default="", help="Optional temperature calibration JSON file")
     args = parser.parse_args()
-    result = predict(args.topic, args.filename, args.checkpoint, args.threshold)
+    result = predict(args.topic, args.filename, args.checkpoint, args.threshold,
+                     args.calibration or None, args.margin_threshold)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
