@@ -46,7 +46,7 @@ def _write_test_gguf(path: Path, model, labels: list[str], config: LionAIConfig)
     ]
     tensors = []
     for name, value in model.state_dict().items():
-        raw = value.detach().cpu().contiguous().numpy().astype("<f4", copy=False).tobytes()
+        raw = bytes(value.detach().cpu().contiguous().view(torch.uint8).tolist())
         tensors.append(("lionai." + name, tuple(reversed(value.shape)), raw))
     tensor_infos = bytearray()
     tensor_data = bytearray()
