@@ -58,6 +58,22 @@ class GitHubMetadataImporterTests(unittest.TestCase):
         self.assertTrue(manifest["metadata_only"])
         self.assertEqual(manifest["license"], "MIT")
 
+    def test_skips_truncated_repository_tree_instead_of_using_partial_metadata(self):
+        repo_info = {"license": {"spdx_id": "MIT"}, "default_branch": "main"}
+        branch_info = {
+            "commit": {"sha": "commit123", "commit": {"tree": {"sha": "abc123"}}}
+        }
+        truncated_tree = {
+            "sha": "abc123", "truncated": True,
+            "tree": [{"path": "src/main.py", "type": "blob", "mode": "100644"}],
+        }
+        with patch("training.import_github_metadata.api_get",
+                   side_effect=[repo_info, branch_info, truncated_tree]):
+            rows, manifest = collect_repo("example/large-project", "", 100)
+        self.assertEqual(rows, [])
+        self.assertEqual(manifest["status"], "skipped_truncated_tree")
+        self.assertTrue(manifest["tree_truncated"])
+
     def test_skips_repository_without_allowlisted_license(self):
         with patch("training.import_github_metadata.api_get", return_value={
             "license": {"spdx_id": "GPL-3.0"}, "default_branch": "main"
