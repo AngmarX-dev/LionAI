@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
 from pathlib import Path
 
 import torch
@@ -26,7 +25,7 @@ def read_rows(path: Path) -> list[dict[str, str]]:
             raise ValueError(f"{path}:{line_number}: topic, filename and label must be non-empty strings")
         if not isinstance(row["extension"], str) or row["label"] not in LABELS:
             raise ValueError(f"{path}:{line_number}: invalid extension or unknown label")
-        if "/" in row["filename"] or "\\\\" in row["filename"]:
+        if "/" in row["filename"] or "\\" in row["filename"]:
             raise ValueError(f"{path}:{line_number}: filename must be metadata, not a path")
         rows.append(row)
     if not rows:
@@ -46,7 +45,6 @@ def evaluate(checkpoint: Path, test_file: Path, train_file: Path | None = None) 
     model, labels, config = load_checkpoint(checkpoint, device)
     tokenizer = LionAITokenizer()
     matrix = [[0 for _ in labels] for _ in labels]
-    predictions = []
     model.eval()
     with torch.inference_mode():
         for row in rows:
@@ -54,7 +52,6 @@ def evaluate(checkpoint: Path, test_file: Path, train_file: Path | None = None) 
             predicted_id = int(model(ids.to(device), mask.to(device)).argmax(dim=-1).item())
             actual_id = labels.index(row["label"])
             matrix[actual_id][predicted_id] += 1
-            predictions.append((actual_id, predicted_id))
 
     per_class = {}
     f1_values = []
@@ -98,7 +95,7 @@ def main() -> int:
     if args.output:
         output = Path(args.output)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(rendered + "\\n", encoding="utf-8")
+        output.write_text(rendered + "\n", encoding="utf-8")
     return 0
 
 
