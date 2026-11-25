@@ -127,8 +127,14 @@ def collect_repo(repo: str, token: str, max_files: int) -> tuple[list[dict[str, 
     if not default_branch:
         return [], {"repository": repo, "status": "skipped_no_branch", "license": license_id}
 
+    branch_info = api_get(
+        f"/repos/{repo}/branches/{quote(default_branch, safe='')}",
+        token,
+    )
+    commit_sha = branch_info["commit"]["sha"]
+    tree_sha = branch_info["commit"]["commit"]["tree"]["sha"]
     tree = api_get(
-        f"/repos/{repo}/git/trees/{quote(default_branch, safe='')}?recursive=1",
+        f"/repos/{repo}/git/trees/{tree_sha}?recursive=1",
         token,
     )
     entries = tree.get("tree") or []
@@ -166,7 +172,7 @@ def collect_repo(repo: str, token: str, max_files: int) -> tuple[list[dict[str, 
         "status": "imported",
         "license": license_id,
         "revision": info.get("default_branch"),
-        "commit": tree.get("sha"),
+        "commit": commit_sha,\n        "tree_sha": tree.get("sha"),
         "tree_truncated": bool(tree.get("truncated")),
         "tree_entries": len(entries),
         "candidate_files": len(candidates),
