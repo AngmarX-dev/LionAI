@@ -26,6 +26,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile Python modules
-        run: python -m py_compile lionai_hybrid.py tests/test_lionai_hybrid.py
+        run: python -m py_compile lionai_hybrid.py lionai_scratch.py training/train_scratch.py tests/test_lionai_hybrid.py tests/test_lionai_scratch.py
       - name: Run hybrid engine tests
         run: python -m unittest discover -s tests -v
