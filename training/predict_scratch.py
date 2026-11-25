@@ -42,7 +42,7 @@ def predict(topic: str, filename: str, checkpoint_path: str | Path,
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, labels, config = load_checkpoint(Path(checkpoint_path), device)
-    extension = Path(filename).suffix.casefold()
+    extension = Path(filename).suffix.casefold().lstrip(".")
     tokenizer = LionAITokenizer()
     ids, mask = tokenizer.batch(
         [{"topic": topic, "filename": filename, "extension": extension}],
