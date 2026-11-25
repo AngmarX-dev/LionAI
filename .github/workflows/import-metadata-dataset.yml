@@ -1,4 +1,4 @@
-name: LionAI metadata dataset import
+name: LionAI metadata dataset import and full-corpus training
 
 on:
   push:
@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - ".github/workflows/import-metadata-dataset.yml"
+      - "training/split_metadata_corpus.py"
+      - "training/evaluate_scratch.py"
   workflow_dispatch:
     inputs:
       max_rows:
@@ -20,7 +22,7 @@ permissions:
 jobs:
   import-metadata:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,7 +30,7 @@ jobs:
           python-version: "3.11"
       - name: Install dataset loader
         run: python -m pip install --upgrade pip "datasets>=3.0.0,<6.0.0"
-      - name: Import metadata-only dataset
+      - name: Import all available metadata rows
         run: |
           python training/import_hf_dataset.py \
             --dataset AnodemTheGr8t/file_organiser_metadata \
@@ -36,34 +38,50 @@ jobs:
             --revision main \
             --max-rows "${{ inputs.max_rows || '0' }}" \
             --output training/external/lionai_file_organiser_metadata.jsonl
-      - name: Audit imported metadata
+      - name: Merge and audit all metadata sources
         run: |
           python training/build_metadata_corpus.py \
             --input training/lionai_scratch_train.jsonl \
-          --input training/external/lionai_file_organiser_metadata.jsonl \
-          --output training/external/lionai_metadata_corpus.jsonl \
-          --report training/external/lionai_metadata_corpus_report.json
+            --input training/external/lionai_file_organiser_metadata.jsonl \
+            --output training/external/lionai_metadata_corpus.jsonl \
+            --report training/external/lionai_metadata_corpus_report.json
+      - name: Create topic-disjoint full-corpus splits
+        run: |
+          python training/split_metadata_corpus.py \
+            --input training/external/lionai_metadata_corpus.jsonl \
+            --output-dir training/external/splits \
+            --validation-fraction 0.10 \
+            --test-fraction 0.10
       - name: Install CPU training runtime
         run: python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5.0"
       - name: Train LionAI from random initialization
         run: |
           python training/train_scratch.py \
-            --data training/external/lionai_metadata_corpus.jsonl \
-            --validation-data training/lionai_scratch_eval.jsonl \
-            --epochs 12 \
+            --data training/external/splits/train.jsonl \
+            --validation-data training/external/splits/validation.jsonl \
+            --epochs 20 \
             --batch-size 32 \
-            --patience 4 \
+            --patience 5 \
             --output artifacts/lionai-scratch.pt \
             --history-output artifacts/training-history.json
-      - name: Upload dataset, audit and trained model
+      - name: Evaluate on the untouched topic-disjoint test split
+        run: |
+          python training/evaluate_scratch.py \
+            --checkpoint artifacts/lionai-scratch.pt \
+            --test training/external/splits/test.jsonl \
+            --train training/external/splits/train.jsonl \
+            --output artifacts/evaluation-report.json
+      - name: Upload complete corpus, splits, model and evaluation
         uses: actions/upload-artifact@v4
         with:
-          name: lionai-metadata-dataset
+          name: lionai-full-corpus-model-and-evaluation
           path: |
             training/external/lionai_file_organiser_metadata.jsonl
             training/external/lionai_metadata_corpus.jsonl
             training/external/lionai_metadata_corpus_report.json
+            training/external/splits/
             artifacts/lionai-scratch.pt
             artifacts/training-history.json
+            artifacts/evaluation-report.json
           if-no-files-found: error
           retention-days: 14
