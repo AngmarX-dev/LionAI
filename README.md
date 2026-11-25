@@ -57,7 +57,7 @@ The training script uses CUDA when available and otherwise falls back to CPU. St
 - `tests/test_lionai_scratch_inference.py`: verifies the inference safety contract.
 - `training/lionai_scratch_train.jsonl`: curated starter examples containing only topic, filename, extension and label.
 - `training/download_model.py` and `training/train_qwen3_qlora.py`: legacy Qwen experiment scripts; they are not used by the selected from-scratch architecture.
-- Native inference integration, model calibration, independent evaluation, and safe apply/rollback remain future work.
+- Native inference integration and safe apply/rollback remain future work; confidence calibration is available as an opt-in offline workflow.
 
 ## Safety requirements
 
