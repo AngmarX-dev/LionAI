@@ -20,7 +20,7 @@ permissions:
 jobs:
   import-metadata:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,10 +39,23 @@ jobs:
       - name: Audit imported metadata
         run: |
           python training/build_metadata_corpus.py \
-            --input training/external/lionai_file_organiser_metadata.jsonl \
-            --output training/external/lionai_metadata_corpus.jsonl \
-            --report training/external/lionai_metadata_corpus_report.json
-      - name: Upload imported dataset and audit report
+            --input training/lionai_scratch_train.jsonl \
+          --input training/external/lionai_file_organiser_metadata.jsonl \
+          --output training/external/lionai_metadata_corpus.jsonl \
+          --report training/external/lionai_metadata_corpus_report.json
+      - name: Install CPU training runtime
+        run: python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.5.0"
+      - name: Train LionAI from random initialization
+        run: |
+          python training/train_scratch.py \
+            --data training/external/lionai_metadata_corpus.jsonl \
+            --validation-data training/lionai_scratch_eval.jsonl \
+            --epochs 12 \
+            --batch-size 32 \
+            --patience 4 \
+            --output artifacts/lionai-scratch.pt \
+            --history-output artifacts/training-history.json
+      - name: Upload dataset, audit and trained model
         uses: actions/upload-artifact@v4
         with:
           name: lionai-metadata-dataset
@@ -50,5 +63,7 @@ jobs:
             training/external/lionai_file_organiser_metadata.jsonl
             training/external/lionai_metadata_corpus.jsonl
             training/external/lionai_metadata_corpus_report.json
+            artifacts/lionai-scratch.pt
+            artifacts/training-history.json
           if-no-files-found: error
           retention-days: 14
