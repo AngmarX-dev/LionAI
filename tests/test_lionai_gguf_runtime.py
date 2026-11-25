@@ -70,6 +70,9 @@ class LionAIGGUFTests(unittest.TestCase):
         torch.manual_seed(1234)
         config = LionAIConfig(dropout=0.0)
         original = build_model(config).eval()
+        with torch.no_grad():
+            for parameter in original.parameters():
+                parameter.fill_(0.01)
         labels = [f"class-{i}" for i in range(config.num_classes)]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "fixture.gguf"
@@ -82,12 +85,17 @@ class LionAIGGUFTests(unittest.TestCase):
                 expected = original(ids, mask)
                 actual = restored(ids, mask)
             self.assertEqual(labels, restored_labels)
+            self.assertTrue(torch.isfinite(expected).all().item())
+            self.assertTrue(torch.isfinite(actual).all().item())
             torch.testing.assert_close(actual, expected, rtol=0, atol=0)
 
     def test_predict_returns_metadata_only_safety_contract(self):
         torch.manual_seed(1234)
         config = LionAIConfig(dropout=0.0)
         model = build_model(config).eval()
+        with torch.no_grad():
+            for parameter in model.parameters():
+                parameter.fill_(0.01)
         labels = [f"class-{i}" for i in range(config.num_classes)]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "fixture.gguf"
