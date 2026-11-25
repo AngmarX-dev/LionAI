@@ -166,7 +166,7 @@ def main():
             "seed": args.seed,
             "initialized_from": "random",
             "history": history,
-        }, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         history_tmp.replace(history_path)
         print(
             f"epoch={epoch} train_loss={total_loss / max(1, len(train_loader)):.4f} "
