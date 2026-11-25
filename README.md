@@ -1,54 +1,44 @@
 # LionAI
 
-LionAI is an offline file-organization assistant. The selected model is **Qwen3-1.7B** with memory-conscious 4-bit QLoRA fine-tuning. The earlier Qwen2.5-0.5B experiment remains a legacy baseline.
+LionAI is an offline, task-specific file-organization model. The selected direction is a **fully from-scratch model**: its neural weights start randomly initialized, its tokenizer is custom, and it is trained on LionAI-owned metadata examples. No Qwen, DeepSeek, or other pretrained model weights are part of this design.
 
-## Selected model
+## From-scratch model (current development)
 
-- **Model:** [Qwen/Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B).
-- **License:** Apache-2.0.
-- **Training:** 4-bit NF4 QLoRA. Base weights remain frozen; only small LoRA adapters are trained.
-- **LoRA scope:** rank 8 on `q_proj` and `v_proj` by default.
-- **Download location:** `models/Qwen3-1.7B/`. Model weights are intentionally not committed to Git.
-- **Inference direction:** GGUF + llama.cpp for local CPU/GPU inference after fine-tuning and independent evaluation.
+- **Architecture:** compact Transformer encoder classifier for file-role prediction.
+- **Tokenizer:** deterministic UTF-8 byte tokenizer; no downloaded vocabulary or pretrained tokenizer.
+- **Inputs:** user topic, filename and extension only. File contents are never read.
+- **Outputs:** one of 13 organization classes. The native safety/organization layer remains responsible for constructing and validating paths.
+- **Initialization:** random weights, reproducible seed; no pretrained checkpoint loading.
+- **Training data:** `training/lionai_scratch_train.jsonl`, a small curated starter set. It is a development dataset, not enough to claim production accuracy.
+- **Checkpoint:** `artifacts/lionai-scratch.pt` (generated locally; model weights are not committed to Git).
 
-## Download and train
+Install and train:
 
 ```bash
 python -m venv .venv
 # Windows: .venv\\Scripts\\activate
 # Linux: source .venv/bin/activate
-python -m pip install -r training/requirements-qwen3.txt
-python training/download_model.py --model Qwen/Qwen3-1.7B --destination models/Qwen3-1.7B
+python -m pip install -r training/requirements-scratch.txt
+python training/train_scratch.py --epochs 30
 ```
 
-The BF16 checkpoint is roughly 3.4 GB; reserve additional disk space for the download cache and training artifacts. Training requires a CUDA GPU with at least 5.5 GiB VRAM in this conservative profile. A 6 GB GPU is close to the minimum and may still run out of memory depending on other GPU workloads.
+The training script uses CUDA when available and otherwise falls back to CPU. Start with a small epoch count when testing. A successful training run does not establish generalization: expand the dataset, create a topic-disjoint held-out test set, and evaluate per-class precision/recall before enabling model predictions in the organizer.
 
-## Current implementation status
+## Existing components
 
-- `lionai.c`: existing native organizer and experimental Naive Bayes baseline; it is not the Qwen3 model.
-- `lionai_hybrid.py`: metadata-only hybrid proposal engine with deterministic classification and a strictly validated optional language-model hook. It creates previews only; it never reads or moves files.
-- `lionai.py`: optional launcher for the native C executable.
-- `training/download_model.py`: downloads and verifies Qwen3-1.7B.
-- `training/train_qwen3_qlora.py`: trains only LoRA adapters; base model weights remain frozen.
-- `training/lionai_sft.jsonl`: starter fine-tuning data.
-- **LLM inference is not yet integrated into the native `organize` command.**
-- GGUF export, quantization, native runtime integration, and LionOS integration remain future steps.
+- `lionai.c`: native organizer and experimental Naive Bayes baseline.
+- `lionai_hybrid.py`: metadata-only preview engine with deterministic classification and a strictly validated optional model hook. It never reads or moves files.
+- `lionai_scratch.py`: custom byte tokenizer and randomly initialized Transformer classifier.
+- `training/train_scratch.py`: supervised training pipeline for the from-scratch model.
+- `training/lionai_scratch_train.jsonl`: curated starter examples containing only topic, filename, extension and label.
+- `training/download_model.py` and `training/train_qwen3_qlora.py`: legacy Qwen experiment scripts; they are not used by the selected from-scratch architecture.
+- Native inference integration, model calibration, independent evaluation, and safe apply/rollback remain future work.
 
-## Hybrid engine (first implementation milestone)
+## Safety requirements
 
-Run a metadata-only preview without loading a language model:
-
-```bash
-python lionai_hybrid.py --topic "Family photos" --files IMG_1023.jpg beach_trip.png notes.txt
-```
-
-The engine combines extension rules and filename semantics. An optional model proposer can refine destinations, but it receives filenames/extensions only; unsafe paths, low-confidence suggestions, malformed mappings, and collisions are rejected or sent to review. Run tests with `python -m unittest discover -s tests -v`.
-
-## Safety and limitations
-
-- The model receives only the user-supplied topic and file metadata such as names/extensions; it must not inspect file contents.
-- Parse and validate every JSON response. Reject malformed output, paths outside the selected root, duplicate destinations, and unsupported operations.
-- Default behavior must be preview-only. Never delete or overwrite files; preserve filenames, extensions, and contents.
-- Ambiguous filenames must be sent to `Other/Review` and require user review.
-- The existing native organizer is still an MVP and does not yet provide rollback/undo. Back up files before applying file moves.
-- Training loss is not proof of useful file organization. Run independent held-out evaluation before considering GGUF export or release.
+- Only user-supplied topic and file metadata may reach the model. Never inspect file contents.
+- The model predicts a category; it does not get authority to perform filesystem operations.
+- Validate all predicted classes and generated paths in trusted native code.
+- Reject path traversal, absolute paths, invalid filenames and destination collisions.
+- Default to preview-only. Require explicit user confirmation before any apply operation.
+- Never delete or overwrite files. Ambiguous predictions must be sent to `Other/Review`.
