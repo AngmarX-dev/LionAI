@@ -25,6 +25,15 @@ class ScratchTokenizerTests(unittest.TestCase):
         tokens = LionAITokenizer().encode("x" * 100, "y" * 100, ".txt", max_length=32)
         self.assertEqual(len(tokens), 32)
 
+    def test_v2_defaults_use_compact_regularized_architecture(self):
+        config = LionAIConfig()
+        self.assertEqual(config.d_model, 128)
+        self.assertEqual(config.n_heads, 4)
+        self.assertEqual(config.n_layers, 2)
+        self.assertEqual(config.feedforward, 384)
+        self.assertEqual(config.max_length, 192)
+        self.assertEqual(config.dropout, 0.25)
+
     def test_model_is_randomly_initialized_and_has_expected_output_shape(self):
         import torch
         config = LionAIConfig(d_model=32, n_heads=4, n_layers=1, feedforward=64,
