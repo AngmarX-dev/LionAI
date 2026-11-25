@@ -1,0 +1,45 @@
+{"topic":"عکس‌های خانوادگی","filename":"IMG_1023.jpg","extension":"jpg","label":"Images"}
+{"topic":"عکس‌های خانوادگی","filename":"beach_trip.png","extension":"png","label":"Images"}
+{"topic":"پروژه طراحی","filename":"logo.svg","extension":"svg","label":"Images"}
+{"topic":"school","filename":"class_photo.jpeg","extension":"jpeg","label":"Images"}
+{"topic":"مدارک مدرسه","filename":"biology_notes.pdf","extension":"pdf","label":"Documents"}
+{"topic":"مدارک مدرسه","filename":"essay.docx","extension":"docx","label":"Documents"}
+{"topic":"project","filename":"README.md","extension":"md","label":"Documents"}
+{"topic":"personal","filename":"letter.txt","extension":"txt","label":"Documents"}
+{"topic":"تحلیل داده","filename":"sales.csv","extension":"csv","label":"Data"}
+{"topic":"تحلیل داده","filename":"records.xlsx","extension":"xlsx","label":"Data"}
+{"topic":"research","filename":"measurements.csv","extension":"csv","label":"Data"}
+{"topic":"dataset","filename":"samples.jsonl","extension":"jsonl","label":"Data"}
+{"topic":"پادکست","filename":"episode.mp3","extension":"mp3","label":"Audio"}
+{"topic":"موسیقی","filename":"vocal.wav","extension":"wav","label":"Audio"}
+{"topic":"project","filename":"soundtrack.flac","extension":"flac","label":"Audio"}
+{"topic":"language study","filename":"pronunciation.ogg","extension":"ogg","label":"Audio"}
+{"topic":"فیلم خانوادگی","filename":"birthday.mp4","extension":"mp4","label":"Video"}
+{"topic":"animation","filename":"render.mov","extension":"mov","label":"Video"}
+{"topic":"project","filename":"screen_recording.webm","extension":"webm","label":"Video"}
+{"topic":"video","filename":"trailer.mkv","extension":"mkv","label":"Video"}
+{"topic":"پروژه نرم‌افزار","filename":"source_backup.zip","extension":"zip","label":"Archives"}
+{"topic":"project","filename":"assets.tar.gz","extension":"gz","label":"Archives"}
+{"topic":"files","filename":"archive.7z","extension":"7z","label":"Archives"}
+{"topic":"backup","filename":"old_files.rar","extension":"rar","label":"Archives"}
+{"topic":"پروژه نرم‌افزار","filename":"main.c","extension":"c","label":"Source"}
+{"topic":"پروژه نرم‌افزار","filename":"app.py","extension":"py","label":"Source"}
+{"topic":"website","filename":"home.html","extension":"html","label":"Source"}
+{"topic":"app","filename":"server.ts","extension":"ts","label":"Source"}
+{"topic":"پروژه نرم‌افزار","filename":"settings.json","extension":"json","label":"Config"}
+{"topic":"website","filename":"config.yaml","extension":"yaml","label":"Config"}
+{"topic":"app","filename":"vite.config.js","extension":"js","label":"Config"}
+{"topic":"project","filename":"manifest.toml","extension":"toml","label":"Config"}
+{"topic":"نصب برنامه","filename":"setup.exe","extension":"exe","label":"Installers"}
+{"topic":"نصب برنامه","filename":"package.msi","extension":"msi","label":"Installers"}
+{"topic":"android","filename":"release.apk","extension":"apk","label":"Installers"}
+{"topic":"طراحی","filename":"display.ttf","extension":"ttf","label":"Fonts"}
+{"topic":"design","filename":"icons.woff2","extension":"woff2","label":"Fonts"}
+{"topic":"database","filename":"app.sqlite","extension":"sqlite","label":"Databases"}
+{"topic":"database","filename":"schema.sql","extension":"sql","label":"Databases"}
+{"topic":"گزارش مالی","filename":"annual_report.pdf","extension":"pdf","label":"Reports"}
+{"topic":"گزارش مالی","filename":"invoice_2026.pdf","extension":"pdf","label":"Reports"}
+{"topic":"business","filename":"quarterly_statement.xlsx","extension":"xlsx","label":"Reports"}
+{"topic":"misc","filename":"file_001.blob","extension":"blob","label":"Other/Review"}
+{"topic":"unknown","filename":"untitled","extension":"","label":"Other/Review"}
+{"topic":"misc","filename":"data.bin","extension":"bin","label":"Other/Review"}
