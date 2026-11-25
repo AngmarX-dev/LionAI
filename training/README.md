@@ -56,7 +56,7 @@ The splitter uses every accepted row exactly once, keeps all records sharing a n
       --train training/external/splits/train.jsonl \
       --output artifacts/evaluation-report.json
 
-The test split is not used for weight selection. Report accuracy, per-class Precision/Recall/F1, macro F1, calibration error, Brier score, and confusion matrix. Do not fit temperature calibration on the final test split.
+The test split is not used for weight selection. Training defaults to deterministic square-root class-aware sampling (`--sampling-power 0.5`): this reduces domination by common classes without giving the rarest classes the same total sampling mass as the largest classes. Use `--sampling-power 0` for ordinary uniform-row sampling or `1` for equal expected class mass. The sampler uses a seeded generator and replacement sampling, while validation and test distributions remain untouched. Report accuracy, per-class Precision/Recall/F1, macro F1, calibration error, Brier score, and confusion matrix. Compare the new checkpoint against the previous run on the same untouched test split; do not claim improvement unless macro F1 and rare-class recall actually improve. Do not fit temperature calibration on the final test split.
 
 ## GitHub Actions
 
@@ -66,7 +66,7 @@ The **LionAI metadata dataset import and full-corpus training** workflow imports
 
 The Hugging Face source is synthetic and English-only. The GitHub tree source contains real public filenames from permissively licensed repositories, but is biased toward software projects and its extension-derived labels are weak supervision. Its labels are largely determined by file extensions, and its `folder_hint` field becomes topic metadata. It is useful for engineering tests, but it is not a realistic production benchmark. The source card declares CC0-1.0; verify the card before redistribution. The card and viewer have shown inconsistent row counts, so always trust the importer's actual `rows_written` count.
 
-The 13-class mapping is imbalanced: rare classes such as Reports and Databases have very few records. More samples should be added from independently licensed, relevant sources before making real-world accuracy claims.
+The 13-class mapping is imbalanced: rare classes such as Reports, Fonts, Installers, and Databases have few independent topics. Class-aware sampling mitigates training bias but does not create new information or replace collecting more independently licensed, relevant, human-verified examples. The GitHub labels remain weakly supervised, so improvements on this corpus are not proof of production accuracy.
 
 ## Safety boundary
 
