@@ -30,6 +30,16 @@ class ScratchDatasetAuditTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_dataset(path)
 
+
+    def test_rejects_mismatched_extension(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = self.make_file(directory, "bad.jsonl", [{
+                "topic": "test", "filename": "notes.pdf",
+                "extension": "txt", "label": "Documents",
+            }])
+            with self.assertRaisesRegex(ValueError, "extension does not match"):
+                load_dataset(path)
+
     def test_rejects_train_eval_topic_leakage(self):
         with tempfile.TemporaryDirectory() as directory:
             labels = ["Images", "Documents", "Data", "Audio", "Video", "Archives",
