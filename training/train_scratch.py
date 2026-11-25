@@ -276,6 +276,7 @@ def main():
                                 for key, value in model.state_dict().items()}
             checkpoint = {
                 "state_dict": checkpoint_state,
+                "model": "lionai-scratch-transformer-v2",
                 "config": config.__dict__,
                 "labels": LABELS,
                 "tokenizer": "utf8-byte-v1",
