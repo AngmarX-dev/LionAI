@@ -16,8 +16,8 @@ class LionAITokenizer:
     def encode(self, topic: str, filename: str, extension: str, max_length: int = 256) -> list[int]:
         if not all(isinstance(x, str) for x in (topic, filename, extension)):
             raise TypeError("topic, filename and extension must be strings")
-        payload = topic.encode("utf-8") + bytes([10]) + filename.encode("utf-8") + bytes([SEP_ID - BYTE_OFFSET]) + extension.encode("utf-8")
-        return [min(byte + BYTE_OFFSET, VOCAB_SIZE - 1) for byte in payload[:max_length]]
+        payload = list(topic.encode("utf-8")) + [10] + list(filename.encode("utf-8")) + [SEP_ID] + list(extension.encode("utf-8"))
+        return [byte + BYTE_OFFSET if byte != SEP_ID else SEP_ID for byte in payload[:max_length]]
 
     def batch(self, rows: list[dict[str, str]], max_length: int = 256):
         import torch
