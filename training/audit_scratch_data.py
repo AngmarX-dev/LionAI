@@ -28,10 +28,13 @@ def load_dataset(path: Path) -> list[dict[str, str]]:
         if not row["topic"].strip() or not row["filename"].strip():
             raise ValueError(f"{path}:{line_number}: topic and filename cannot be empty")
         name = row["filename"]
-        if name in {".", ".."} or "/" in name or "\\" in name or any(ord(ch) < 32 for ch in name):
+        if name in {".", ".."} or "/" in name or "\\" in name or any(ord(ch) < 32 or ch in '<>:"|?*' for ch in name):
             raise ValueError(f"{path}:{line_number}: filename must be a plain filename")
         if row["label"] not in LABELS:
             raise ValueError(f"{path}:{line_number}: unknown label {row['label']!r}")
+        expected_extension = Path(name).suffix.casefold().lstrip(".")
+        if row["extension"].casefold().lstrip(".") != expected_extension:
+            raise ValueError(f"{path}:{line_number}: extension does not match filename suffix")
         rows.append(row)
     if not rows:
         raise ValueError(f"{path}: dataset is empty")
@@ -54,16 +57,17 @@ def audit(train_path: Path, eval_path: Path) -> dict:
     if missing_train or missing_eval:
         raise ValueError(f"Missing classes; train={missing_train}, evaluation={missing_eval}")
 
-    seen = {}
-    duplicates = []
-    for index, row in enumerate(train, 1):
-        key = (row["topic"].casefold().strip(), row["filename"].casefold())
-        if key in seen:
-            duplicates.append({"first_line": seen[key], "duplicate_line": index, "filename": row["filename"]})
-        else:
-            seen[key] = index
-    if duplicates:
-        raise ValueError(f"Duplicate topic/filename examples: {duplicates[:5]}")
+    for dataset_name, dataset in (("train", train), ("evaluation", evaluation)):
+        seen = {}
+        duplicates = []
+        for index, row in enumerate(dataset, 1):
+            key = (row["topic"].casefold().strip(), row["filename"].casefold())
+            if key in seen:
+                duplicates.append({"first_line": seen[key], "duplicate_line": index, "filename": row["filename"]})
+            else:
+                seen[key] = index
+        if duplicates:
+            raise ValueError(f"Duplicate {dataset_name} topic/filename examples: {duplicates[:5]}")
 
     return {
         "train_examples": len(train),
