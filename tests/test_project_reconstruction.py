@@ -26,7 +26,7 @@ class ProjectReconstructionTests(unittest.TestCase):
         self.assertEqual(kinds["app/templates"], "directory")
         self.assertEqual(kinds["migrations"], "directory")
         self.assertEqual(kinds["app/routes.py"], "file")
-        self.assertIn("└── migrations/", plan.preview())
+        self.assertIn("├── migrations/", plan.preview())
 
     def test_unmarked_parent_with_children_is_inferred_as_directory(self):
         plan = parse_tree_text(
