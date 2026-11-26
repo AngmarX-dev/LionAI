@@ -26,7 +26,7 @@ SUPPORTED_FEATURES = {
 class ProjectIntent:
     name: str
     framework: str
-    features: tuple[str, ...] = ("tests",)
+    features: tuple[str, ...] = ("tests", "templates", "static", "database", "authentication")
 
 
 def _entry(path: str, kind: str, content: str = "") -> dict[str, str]:
@@ -93,6 +93,10 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                        "{% block content %}{% endblock %}</body></html>\n"),
                 _entry("app/templates/index.html", "file",
                        "{% extends 'base.html' %}\n{% block content %}<h1>Welcome</h1>{% endblock %}\n"),
+                _entry("app/templates/login.html", "file",
+                       "{% extends 'base.html' %}\n{% block content %}<h1>Login</h1>{% endblock %}\n"),
+                _entry("app/templates/dashboard.html", "file",
+                       "{% extends 'base.html' %}\n{% block content %}<h1>Dashboard</h1>{% endblock %}\n"),
             ])
         if "static" in intent.features:
             entries.extend([
@@ -120,10 +124,12 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
             entries.extend([
                 _entry("tests", "directory"),
                 _entry("tests/__init__.py", "file", ""),
-                _entry("tests/test_app.py", "file",
+                _entry("tests/test_routes.py", "file",
                        "from app import create_app\n\ndef test_index_route():\n"
                        "    response = create_app().test_client().get('/')\n"
                        "    assert response.status_code == 200\n"),
+                _entry("tests/test_models.py", "file",
+                       "def test_models_module_is_available():\n    import app.models\n"),
             ])
 
     elif intent.framework == "fastapi":
