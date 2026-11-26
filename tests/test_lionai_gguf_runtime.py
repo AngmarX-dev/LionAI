@@ -211,9 +211,11 @@ class LionAIGGUFTests(unittest.TestCase):
             output_path = root / "predictions.jsonl"
             _write_test_gguf(model_path, model, labels, config)
             input_path.write_text(
-                '{"topic":"photos","filename":"one.jpg"}\\n'
-                '{"topic":"documents","filename":"two.txt"}\\n'
-                '{"topic":"audio","filename":"three.mp3"}\\n',
+                "\n".join([
+                    '{"topic":"photos","filename":"one.jpg"}',
+                    '{"topic":"documents","filename":"two.txt"}',
+                    '{"topic":"audio","filename":"three.mp3"}',
+                ]) + "\n",
                 encoding="utf-8",
             )
             with patch("sys.argv", [
