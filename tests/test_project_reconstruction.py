@@ -30,9 +30,9 @@ class ProjectReconstructionTests(unittest.TestCase):
 
     def test_unmarked_parent_with_children_is_inferred_as_directory(self):
         plan = parse_tree_text(
-            "demo/\\n"
-            "└── src\\n"
-            "    └── main.py\\n"
+            "demo/\n"
+            "└── src\n"
+            "    └── main.py\n"
         )
         kinds = {entry.path: entry.kind for entry in plan.entries}
         self.assertEqual(kinds["src"], "directory")
