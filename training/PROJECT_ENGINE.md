@@ -13,9 +13,11 @@ handling from the metadata classifier.
   components, and existing project destinations.
 - Never execute generated code and never overwrite existing files.
 
-This module is a deterministic executor, not a natural-language generator. A
-future intent/planning layer will convert requests such as "create a Flask shop"
-into a manifest. The manifest must be reviewed before applying it.
+The deterministic intent layer in `project_intent.py` now validates structured
+requests and builds starter manifests for Flask, FastAPI, and Python CLI projects.
+It does not parse arbitrary natural-language prompts yet. A future language
+planner will convert user requests into this schema. The resulting manifest must
+be previewed and explicitly approved before applying it.
 
 ## Example
 
@@ -60,3 +62,25 @@ plan. It must represent a separate, explicit user approval.
 3. Convert natural-language requests into a proposed manifest, with validation.
 4. Add a reconstruction importer for filesystem scans and textual tree input.
 5. Add end-to-end fixtures that compare a requested tree with the generated tree.
+
+## Structured project intent
+
+```python
+from training.project_intent import ProjectIntent, build_project_plan
+
+intent = ProjectIntent(
+    name="flask-shop",
+    framework="flask",
+    features=("tests", "templates", "static", "database"),
+)
+plan = build_project_plan(intent)
+print(plan.preview())
+# After the user reviews and explicitly approves:
+# plan.apply("./workspace", confirmed=True)
+```
+
+Supported frameworks: `flask`, `fastapi`, and `python-cli`.
+
+Supported optional features: `tests`, `templates`, `static`, `database`,
+and `authentication` (Flask only). Unsupported combinations are rejected.
+Planning is read-only; only the separately confirmed ProjectPlan can create files.
