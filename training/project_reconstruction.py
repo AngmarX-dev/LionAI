@@ -115,8 +115,9 @@ def parse_tree_text(
         kinds[path] = "directory" if is_dir else "file"
         if parent:
             child_parents.add(parent)
-        if is_dir:
-            stack.append(path)
+        # Keep every node on the ancestry stack; if a later node is nested
+        # beneath it, child_parents will correctly promote it to a directory.
+        stack.append(path)
 
     for parent in child_parents:
         if parent not in kinds:
