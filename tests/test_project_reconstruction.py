@@ -28,6 +28,16 @@ class ProjectReconstructionTests(unittest.TestCase):
         self.assertEqual(kinds["app/routes.py"], "file")
         self.assertIn("└── migrations/", plan.preview())
 
+    def test_unmarked_parent_with_children_is_inferred_as_directory(self):
+        plan = parse_tree_text(
+            "demo/\\n"
+            "└── src\\n"
+            "    └── main.py\\n"
+        )
+        kinds = {entry.path: entry.kind for entry in plan.entries}
+        self.assertEqual(kinds["src"], "directory")
+        self.assertEqual(kinds["src/main.py"], "file")
+
     def test_parse_tree_can_use_explicit_project_name(self):
         plan = parse_tree_text("├── src/\n│   └── main.py\n", project_name="tool")
         self.assertEqual(plan.name, "tool")
