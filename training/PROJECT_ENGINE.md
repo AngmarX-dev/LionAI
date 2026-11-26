@@ -13,11 +13,12 @@ handling from the metadata classifier.
   components, and existing project destinations.
 - Never execute generated code and never overwrite existing files.
 
-The deterministic intent layer in `project_intent.py` now validates structured
+The deterministic intent layer in `project_intent.py` validates structured
 requests and builds starter manifests for Flask, FastAPI, and Python CLI projects.
-It does not parse arbitrary natural-language prompts yet. A future language
-planner will convert user requests into this schema. The resulting manifest must
-be previewed and explicitly approved before applying it.
+The bilingual phrase parser in `natural_language_planner.py` converts supported
+Persian and English requests into this schema. It is deliberately conservative,
+not a general-purpose language model. The resulting manifest must be previewed
+and explicitly approved before applying it.
 
 ## Example
 
