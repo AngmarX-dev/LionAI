@@ -50,3 +50,30 @@ python training/export_gguf.py --checkpoint artifacts/lionai-scratch.pt --output
 The exporter validates the GGUF header and metadata, reloads all tensors, requires bit-exact tensor round-trip equality, and checks that a fixed inference input produces exactly matching PyTorch and GGUF-runtime logits. The generated JSON sidecar records the SHA-256 digest and validation status.
 
 A successful serialization check does not certify model quality. Promote a checkpoint only after repository-disjoint evaluation meets the project's acceptance criteria. The v2 benchmark currently remains below the earlier independent-evaluation baseline, so its GGUF is a technical candidate rather than a production release.
+
+## Batch inference (JSONL)
+
+The runtime loads the GGUF model once per process, then reuses it across chunks. Each input line must be a JSON object containing exactly `topic` and `filename`; the filename must be a plain name, not a path. File contents are never opened.
+
+Example input (`metadata.jsonl`):
+
+```json
+{"topic":"photography","filename":"summer.jpg"}
+{"topic":"documents","filename":"notes.txt"}
+{"topic":"audio","filename":"voice.mp3"}
+```
+
+Run batched inference and write one JSON result per input row:
+
+```bash
+python training/lionai_gguf_runtime.py \
+  --model ./LionAI-scratch-v2.gguf \
+  --input-jsonl ./metadata.jsonl \
+  --output-jsonl ./predictions.jsonl \
+  --batch-size 128 \
+  --device auto
+```
+
+Use `--batch-size 1` for effectively sequential inference or increase it (maximum 1024) when memory permits. Output order matches input order. The output is written to a temporary sibling file and renamed only after the complete run succeeds, so a failed run does not leave a partial output at the requested destination. Input and output paths must differ. The model is loaded once, not once per row.
+
+For Python callers, reuse `LionAIGGUFSession` and call `predict_batch(records, batch_size=128)`. The backward-compatible `predict_gguf(...)` API remains available.
