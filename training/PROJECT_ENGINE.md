@@ -139,3 +139,36 @@ print(existing_plan.preview())
 The parser reconstructs structure, not missing source code or semantic intent.
 For a bare leaf in a tree listing, the default interpretation is a file unless
 it is marked with a trailing slash or contains children.
+
+
+## Project diff
+
+`training/project_diff.py` compares two validated `ProjectPlan` objects and
+returns an immutable, read-only report.
+
+- Added, removed, modified, unchanged, and file/directory type-conflict paths
+  are reported separately.
+- Structure-only comparison is the default. It does not claim that file
+  contents are equal.
+- `compare_contents=True` compares the supplied text snapshots; use it only
+  when both plans contain complete, trustworthy content snapshots.
+- A type conflict blocks automatic classification of descendants beneath that
+  path and requires manual resolution.
+- Removed paths are suggestions for review only. The diff engine has no apply
+  or delete operation and never changes the filesystem.
+
+Example:
+
+```python
+from training.project_diff import compare_project_plans
+from training.project_reconstruction import scan_directory
+from training.project_intent import ProjectIntent, build_project_plan
+
+current = scan_directory("./existing-project")
+desired = build_project_plan(ProjectIntent(name="existing-project", framework="flask"))
+report = compare_project_plans(current, desired)
+print(report.preview())
+```
+
+Review every reported removal and conflict manually. This stage only reports
+differences; it does not synchronize the project.
