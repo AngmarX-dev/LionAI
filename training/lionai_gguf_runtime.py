@@ -291,6 +291,12 @@ def predict_gguf_batch(records: list[dict], model_path: str | Path,
                        temperature: float = 1.0, device: str = "auto",
                        batch_size: int = 128) -> list[dict]:
     """Load the model once and classify a list of metadata-only records."""
+    if not isinstance(records, list):
+        raise TypeError("records must be a list of metadata objects.")
+    if not isinstance(batch_size, int) or isinstance(batch_size, bool) or not 1 <= batch_size <= 1024:
+        raise ValueError("batch_size must be an integer between 1 and 1024.")
+    for index, record in enumerate(records):
+        LionAIGGUFSession._validate_record(record, index)
     session = LionAIGGUFSession(
         model_path, confidence_threshold, margin_threshold, temperature, device
     )
@@ -303,6 +309,10 @@ def predict_gguf(topic: str, filename: str, model_path: str | Path,
                  temperature: float = 1.0,
                  device: str = "auto") -> dict:
     """Backward-compatible single-record API backed by the batch runtime."""
+    # Validate metadata before opening/loading the model, preserving fail-fast API behavior.
+    LionAIGGUFSession._validate_record(
+        {"topic": topic, "filename": filename}, 0
+    )
     session = LionAIGGUFSession(
         model_path, confidence_threshold, margin_threshold, temperature, device
     )
