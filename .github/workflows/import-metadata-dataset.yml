@@ -16,6 +16,11 @@ on:
       - "training/lionai_gguf_runtime.py"
       - "tests/test_lionai_gguf_runtime.py"
       - "training/import_github_metadata.py"
+      - "training/import_hf_dataset.py"
+      - "training/build_metadata_corpus.py"
+      - "training/audit_scratch_data.py"
+      - "training/lionai_scratch_train.jsonl"
+      - "training/lionai_scratch_eval.jsonl"
       - "training/github_metadata_sources.txt"
       - "training/github_metadata_eval_sources.txt"
   workflow_dispatch:
@@ -28,6 +33,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: lionai-full-corpus-training-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   import-metadata:
