@@ -8,7 +8,9 @@ from pathlib import Path
 import torch
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
-from training.lionai_gguf_runtime import (\n    GGUFError, GGUFReader, LionAIGGUFSession, load_gguf_model, predict_gguf,\n)
+from training.lionai_gguf_runtime import (
+    GGUFError, GGUFReader, LionAIGGUFSession, load_gguf_model, predict_gguf,
+)
 from training.metadata_rules import extension_rule
 
 
