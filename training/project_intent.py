@@ -153,8 +153,8 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                    "    return 0\n\nif __name__ == '__main__':\n    raise SystemExit(main())\n"),
             _entry("README.md", "file", f"# {intent.name}\n\nPython CLI starter project.\n"),
             _entry("pyproject.toml", "file",
-                   "[project]\nname = \"" + intent.name + "\"\nversion = \"0.1.0\"\n"
-                   "requires-python = \">=3.11\"\n"),
+                   "[project]\\nname = " + json.dumps(intent.name) + "\\nversion = \\"0.1.0\\"\\n"
+                   "requires-python = \\">=3.11\\"\\n"),
         ])
         if "tests" in intent.features:
             entries.extend([
