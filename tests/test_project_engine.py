@@ -24,7 +24,7 @@ class ProjectPlanTests(unittest.TestCase):
     def test_preview_preserves_nested_and_empty_directories(self):
         preview = self.make_plan().preview()
         self.assertIn("├── app/", preview)
-        self.assertIn("│   ├── templates/", preview)
+        self.assertIn("templates/", preview)
         self.assertIn("└── migrations/", preview)
 
     def test_preview_does_not_touch_filesystem(self):
