@@ -206,7 +206,7 @@ class LionAIGGUFSession:
         if not isinstance(topic, str) or not topic.strip():
             raise ValueError(f"Batch item {index}: topic must be a non-empty string.")
         if (not isinstance(filename, str) or not filename.strip()
-                or "/" in filename or "\\\\" in filename or "\\0" in filename):
+                or "/" in filename or "\\" in filename or "\x00" in filename):
             raise ValueError(f"Batch item {index}: filename must be a plain filename, not a path.")
         extension = Path(filename).suffix.casefold().lstrip(".")
         return topic, filename, extension
@@ -371,7 +371,7 @@ def main() -> int:
         if output_path is not None:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             temporary_path = output_path.with_name(output_path.name + ".tmp")
-            output_handle = temporary_path.open("w", encoding="utf-8", newline="\\n")
+            output_handle = temporary_path.open("w", encoding="utf-8", newline="\n")
         for records in _iter_jsonl_batches(input_path, args.batch_size):
             results = session.predict_batch(records, batch_size=args.batch_size)
             for result in results:
@@ -379,7 +379,7 @@ def main() -> int:
                 if output_handle is None:
                     print(line)
                 else:
-                    output_handle.write(line + "\\n")
+                    output_handle.write(line + "\n")
         if output_handle is not None:
             output_handle.close()
             temporary_path.replace(output_path)
