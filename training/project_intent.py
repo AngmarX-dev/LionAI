@@ -143,9 +143,12 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                        "from app import create_app\n\ndef test_index_route():\n"
                        "    response = create_app().test_client().get('/')\n"
                        "    assert response.status_code == 200\n"),
-                _entry("tests/test_models.py", "file",
-                       "def test_models_module_is_available():\n    import app.models\n"),
             ])
+            if "database" in features:
+                entries.append(_entry(
+                    "tests/test_models.py", "file",
+                    "def test_models_module_is_available():\n    import app.models\n"
+                ))
 
     elif intent.framework == "fastapi":
         entries.extend([
