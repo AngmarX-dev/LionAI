@@ -55,8 +55,16 @@ def _validate(intent: ProjectIntent) -> None:
     unknown = set(intent.features) - SUPPORTED_FEATURES
     if unknown:
         raise ProjectStructureError(f"Unsupported features: {', '.join(sorted(unknown))}")
-    if "authentication" in intent.features and intent.framework == "python-cli":
-        raise ProjectStructureError("Authentication is not a supported Python CLI feature.")
+    allowed_by_framework = {
+        "flask": SUPPORTED_FEATURES,
+        "fastapi": {"tests", "database"},
+        "python-cli": {"tests"},
+    }
+    unsupported = set(intent.features) - allowed_by_framework[intent.framework]
+    if unsupported:
+        raise ProjectStructureError(
+            "Unsupported features for " + intent.framework + ": " + ", ".join(sorted(unsupported))
+        )
 
 
 def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
@@ -146,9 +154,12 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
             _entry("app/main.py", "file",
                    "from fastapi import FastAPI\n\napp = FastAPI()\n\n"
                    "@app.get('/')\ndef read_root():\n    return {'message': 'FastAPI app is ready'}\n"),
-            _entry("requirements.txt", "file", "fastapi>=0.110\nuvicorn[standard]>=0.27\n"),
+            _entry("requirements.txt", "file", "fastapi>=0.110\nuvicorn[standard]>=0.27\n" + ("SQLAlchemy>=2.0\n" if "database" in features else "")),
             _entry("README.md", "file", f"# {intent.name}\n\nFastAPI starter project.\n"),
         ])
+        if "database" in features:
+            entries.append(_entry("app/database.py", "file",
+                                  '"""Database integration entry point; configure a driver and URL locally."""\n'))
         if "tests" in features:
             entries.extend([
                 _entry("tests", "directory"),
