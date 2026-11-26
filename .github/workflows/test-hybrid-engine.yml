@@ -37,7 +37,7 @@ jobs:
         run: |
           python -m py_compile lionai_hybrid.py lionai_scratch.py \
             training/train_scratch.py training/predict_scratch.py training/evaluate_scratch.py \
-            training/lionai_gguf_runtime.py training/project_engine.py training/project_intent.py training/metadata_rules.py \
+            training/lionai_gguf_runtime.py training/project_engine.py training/project_intent.py training/natural_language_planner.py training/metadata_rules.py \
             training/calibrate_scratch.py training/calibration.py training/audit_scratch_data.py \
             training/import_hf_dataset.py training/import_github_metadata.py training/build_metadata_corpus.py \
             tests/test_hf_dataset_import.py tests/test_github_metadata_import.py tests/test_metadata_corpus_builder.py tests/test_split_metadata_corpus.py \
