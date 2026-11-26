@@ -20,6 +20,7 @@ class SyncAction:
     kind: str
     content: str = ""
     destructive: bool = False
+    expected_content: str | None = None
 
 
 @dataclass(frozen=True)
@@ -160,7 +161,10 @@ def build_sync_plan(
         entry = desired_by_path.get(path)
         if entry is None or entry.kind != "file":
             raise ProjectStructureError("Modified entries must map to desired files.")
-        actions.append(SyncAction("update_file", path, "file", entry.content))
+        actions.append(SyncAction(
+            "update_file", path, "file", entry.content,
+            expected_content=current_by_path[path].content,
+        ))
 
     removed_paths = sorted(
         actual["removed"],
