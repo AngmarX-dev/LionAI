@@ -172,3 +172,45 @@ print(report.preview())
 
 Review every reported removal and conflict manually. This stage only reports
 differences; it does not synchronize the project.
+
+
+## Project synchronization planner
+
+`training/project_sync.py` converts a validated `ProjectDiff` into an
+immutable, ordered synchronization proposal. It is a planner only: it does not
+write, overwrite, rename, or delete files.
+
+- New directories are proposed before their child files.
+- New files and content updates are represented as separate operations.
+- Updates are proposed only when the source diff compared text content and
+  identified a changed file.
+- Removals are excluded by default and listed as pending review.
+- `include_deletions=True` includes explicitly marked destructive proposals,
+  ordered deepest-first. These are still inert descriptions, not executable
+  operations.
+- File/directory type conflicts are surfaced for manual resolution and never
+  converted into automatic actions.
+- The planner validates that the supplied diff matches the exact current and
+  desired plans, rejecting stale or unrelated diff results.
+
+Example:
+
+```python
+from training.project_diff import compare_project_plans
+from training.project_sync import build_sync_plan
+
+diff = compare_project_plans(current, desired, compare_contents=True)
+sync = build_sync_plan(current, desired, diff)
+print(sync.preview())
+
+# To include deletion proposals for review only:
+review_with_deletions = build_sync_plan(
+    current, desired, diff, include_deletions=True
+)
+print(review_with_deletions.preview())
+```
+
+No synchronization executor is included in this milestone. A future executor
+must independently require explicit user approval, revalidate the target
+filesystem immediately before each operation, and keep destructive actions
+behind a separate confirmation step.
