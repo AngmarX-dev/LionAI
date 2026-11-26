@@ -57,11 +57,11 @@ plan. It must represent a separate, explicit user approval.
 
 ## Next milestones
 
-1. Add a project-intent schema (framework, features, constraints, target name).
-2. Add curated templates for Flask, FastAPI, Python CLI, and common project types.
-3. Convert natural-language requests into a proposed manifest, with validation.
-4. Add a reconstruction importer for filesystem scans and textual tree input.
-5. Add end-to-end fixtures that compare a requested tree with the generated tree.
+1. Completed: project-intent schema with framework-specific feature validation.
+2. Completed: curated starter templates for Flask, FastAPI, and Python CLI.
+3. Completed: conservative Persian/English request parsing with safe validation.
+4. Next: add a reconstruction importer for filesystem scans and textual tree input.
+5. Next: add end-to-end fixtures that compare a requested tree with the generated tree.
 
 ## Structured project intent
 
