@@ -48,14 +48,14 @@ def _validate(intent: ProjectIntent) -> None:
         )
     if not isinstance(intent.features, tuple):
         raise ProjectStructureError("features must be a tuple of feature names.")
-    if any(not isinstance(feature, str) for feature in features):
+    if any(not isinstance(feature, str) for feature in intent.features):
         raise ProjectStructureError("Each feature must be a string.")
     if len(set(intent.features)) != len(intent.features):
         raise ProjectStructureError("Duplicate project features are not allowed.")
     unknown = set(intent.features) - SUPPORTED_FEATURES
     if unknown:
         raise ProjectStructureError(f"Unsupported features: {', '.join(sorted(unknown))}")
-    if "authentication" in features and intent.framework == "python-cli":
+    if "authentication" in intent.features and intent.framework == "python-cli":
         raise ProjectStructureError("Authentication is not a supported Python CLI feature.")
 
 
