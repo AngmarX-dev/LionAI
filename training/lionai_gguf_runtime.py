@@ -170,87 +170,225 @@ def load_gguf_model(path: str | Path, device: str | torch.device = "cpu"):
     return model, labels, config, metadata
 
 
+class LionAIGGUFSession:
+    """Load one GGUF model once and reuse it for single or batched predictions."""
+
+    def __init__(self, model_path: str | Path, confidence_threshold: float = 0.75,
+                 margin_threshold: float = 0.10, temperature: float = 1.0,
+                 device: str = "auto"):
+        if not 0 <= confidence_threshold <= 1 or not 0 <= margin_threshold <= 1:
+            raise ValueError("confidence and margin thresholds must be between 0 and 1")
+        if not math.isfinite(temperature) or temperature <= 0:
+            raise ValueError("temperature must be a finite positive number")
+        self.device = torch.device(
+            "cuda" if device == "auto" and torch.cuda.is_available()
+            else "cpu" if device == "auto" else device
+        )
+        if self.device.type == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested but is not available.")
+        self.model, self.labels, self.config, self.metadata = load_gguf_model(
+            model_path, self.device
+        )
+        self.tokenizer = LionAITokenizer()
+        self.confidence_threshold = confidence_threshold
+        self.margin_threshold = margin_threshold
+        self.temperature = temperature
+
+    @staticmethod
+    def _validate_record(record: dict, index: int) -> tuple[str, str, str]:
+        if not isinstance(record, dict):
+            raise ValueError(f"Batch item {index} must be a JSON object.")
+        if set(record) != {"topic", "filename"}:
+            raise ValueError(
+                f"Batch item {index} must contain exactly 'topic' and 'filename'."
+            )
+        topic, filename = record["topic"], record["filename"]
+        if not isinstance(topic, str) or not topic.strip():
+            raise ValueError(f"Batch item {index}: topic must be a non-empty string.")
+        if (not isinstance(filename, str) or not filename.strip()
+                or "/" in filename or "\\\\" in filename or "\\0" in filename):
+            raise ValueError(f"Batch item {index}: filename must be a plain filename, not a path.")
+        extension = Path(filename).suffix.casefold().lstrip(".")
+        return topic, filename, extension
+
+    def predict_batch(self, records: list[dict], batch_size: int = 128) -> list[dict]:
+        if not isinstance(records, list):
+            raise TypeError("records must be a list of metadata objects.")
+        if not isinstance(batch_size, int) or isinstance(batch_size, bool) or not 1 <= batch_size <= 1024:
+            raise ValueError("batch_size must be an integer between 1 and 1024.")
+        validated = [
+            self._validate_record(record, index)
+            for index, record in enumerate(records)
+        ]
+        results: list[dict] = []
+        model_name = str(self.metadata.get(
+            "lionai.model",
+            self.metadata.get("general.name", "lionai-scratch-transformer-custom"),
+        ))
+        for offset in range(0, len(validated), batch_size):
+            chunk = validated[offset:offset + batch_size]
+            token_rows = [
+                {"topic": topic, "filename": filename, "extension": extension}
+                for topic, filename, extension in chunk
+            ]
+            ids, mask = self.tokenizer.batch(
+                token_rows, max_length=self.config.max_length
+            )
+            with torch.inference_mode():
+                logits = self.model(ids.to(self.device), mask.to(self.device))
+                probabilities = torch.softmax(logits / self.temperature, dim=-1)
+                top_probs, top_ids = probabilities.topk(k=2, dim=-1)
+            for row_index, (topic, filename, extension) in enumerate(chunk):
+                confidence = float(top_probs[row_index, 0].item())
+                margin = float(
+                    (top_probs[row_index, 0] - top_probs[row_index, 1]).item()
+                )
+                raw_predicted = self.labels[int(top_ids[row_index, 0].item())]
+                rule_category = extension_rule(filename)
+                predicted = rule_category or raw_predicted
+                rule_override = (
+                    rule_category is not None and rule_category != raw_predicted
+                )
+                needs_review = (
+                    confidence < self.confidence_threshold
+                    or margin < self.margin_threshold
+                    or raw_predicted == "Other/Review"
+                    or rule_override
+                )
+                results.append({
+                    "model": model_name,
+                    "format": "GGUF v3 / F32",
+                    "topic": topic,
+                    "filename": filename,
+                    "extension": extension,
+                    "predicted_category": "Other/Review" if needs_review else predicted,
+                    "suggested_category": predicted,
+                    "raw_top_category": raw_predicted,
+                    "rule_category": rule_category,
+                    "decision_source": "extension_rule" if rule_category is not None else "transformer",
+                    "rule_override": rule_override,
+                    "confidence": round(confidence, 6),
+                    "confidence_margin": round(margin, 6),
+                    "needs_review": needs_review,
+                    "device": str(self.device),
+                    "safety": {
+                        "metadata_only": True,
+                        "file_contents_read": False,
+                        "filesystem_modified": False,
+                        "path_generation_authority": False,
+                        "preview_only": True,
+                    },
+                })
+        return results
+
+    def predict(self, topic: str, filename: str) -> dict:
+        return self.predict_batch([{"topic": topic, "filename": filename}])[0]
+
+
+def predict_gguf_batch(records: list[dict], model_path: str | Path,
+                       confidence_threshold: float = 0.75,
+                       margin_threshold: float = 0.10,
+                       temperature: float = 1.0, device: str = "auto",
+                       batch_size: int = 128) -> list[dict]:
+    """Load the model once and classify a list of metadata-only records."""
+    session = LionAIGGUFSession(
+        model_path, confidence_threshold, margin_threshold, temperature, device
+    )
+    return session.predict_batch(records, batch_size=batch_size)
+
+
 def predict_gguf(topic: str, filename: str, model_path: str | Path,
                  confidence_threshold: float = 0.75,
                  margin_threshold: float = 0.10,
                  temperature: float = 1.0,
                  device: str = "auto") -> dict:
-    if not isinstance(topic, str) or not topic.strip():
-        raise ValueError("topic must be a non-empty string")
-    if not isinstance(filename, str) or not filename.strip() or "/" in filename or "\\" in filename:
-        raise ValueError("filename must be a plain filename, not a path")
-    if not 0 <= confidence_threshold <= 1 or not 0 <= margin_threshold <= 1:
-        raise ValueError("confidence and margin thresholds must be between 0 and 1")
-    if not math.isfinite(temperature) or temperature <= 0:
-        raise ValueError("temperature must be a finite positive number")
-    selected_device = torch.device(
-        "cuda" if device == "auto" and torch.cuda.is_available()
-        else "cpu" if device == "auto" else device
+    """Backward-compatible single-record API backed by the batch runtime."""
+    session = LionAIGGUFSession(
+        model_path, confidence_threshold, margin_threshold, temperature, device
     )
-    model, labels, config, metadata = load_gguf_model(model_path, selected_device)
-    extension = Path(filename).suffix.casefold().lstrip(".")
-    ids, mask = LionAITokenizer().batch(
-        [{"topic": topic, "filename": filename, "extension": extension}],
-        max_length=config.max_length,
-    )
-    with torch.inference_mode():
-        logits = model(ids.to(selected_device), mask.to(selected_device))[0]
-        probs = torch.softmax(logits / temperature, dim=-1)
-    top_probs, top_ids = probs.topk(k=2)
-    confidence = float(top_probs[0].item())
-    margin = float((top_probs[0] - top_probs[1]).item())
-    raw_predicted = labels[int(top_ids[0].item())]
-    rule_category = extension_rule(filename)
-    # High-precision suffixes can correct obvious contradictions (e.g. jpg -> Images).
-    # Keep the model's raw result and require review whenever the rule overrides it.
-    predicted = rule_category or raw_predicted
-    rule_override = rule_category is not None and rule_category != raw_predicted
-    needs_review = (
-        confidence < confidence_threshold
-        or margin < margin_threshold
-        or raw_predicted == "Other/Review"
-        or rule_override
-    )
-    return {
-        "model": str(metadata.get("lionai.model", metadata.get("general.name", "lionai-scratch-transformer-custom"))),
-        "format": "GGUF v3 / F32",
-        "topic": topic,
-        "filename": filename,
-        "extension": extension,
-        "predicted_category": "Other/Review" if needs_review else predicted,
-        "suggested_category": predicted,
-        "raw_top_category": raw_predicted,
-        "rule_category": rule_category,
-        "decision_source": "extension_rule" if rule_category is not None else "transformer",
-        "rule_override": rule_override,
-        "confidence": round(confidence, 6),
-        "confidence_margin": round(margin, 6),
-        "needs_review": needs_review,
-        "device": str(selected_device),
-        "safety": {
-            "metadata_only": True,
-            "file_contents_read": False,
-            "filesystem_modified": False,
-            "path_generation_authority": False,
-            "preview_only": True,
-        },
-    }
+    return session.predict(topic, filename)
+
+
+def _iter_jsonl_batches(input_path: Path, batch_size: int):
+    batch = []
+    with input_path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if len(line.encode("utf-8")) > 1_048_576:
+                raise ValueError(f"Input line {line_number} exceeds the 1 MiB limit.")
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"Invalid JSON on input line {line_number}.") from exc
+            batch.append(record)
+            if len(batch) >= batch_size:
+                yield batch
+                batch = []
+    if batch:
+        yield batch
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, help="Path to LionAI-scratch-v1.gguf")
-    parser.add_argument("--topic", required=True)
-    parser.add_argument("--filename", required=True, help="A plain filename, never a filesystem path")
+    parser.add_argument("--model", required=True, help="Path to a LionAI custom GGUF v3 model")
+    parser.add_argument("--topic", help="Topic for one metadata record")
+    parser.add_argument("--filename", help="Plain filename for one metadata record")
+    parser.add_argument("--input-jsonl", help="JSONL input; each row must contain topic and filename only")
+    parser.add_argument("--output-jsonl", help="Write batch predictions as JSONL (default: stdout)")
+    parser.add_argument("--batch-size", type=int, default=128, help="Inference batch size (1..1024)")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--confidence-threshold", type=float, default=0.75)
     parser.add_argument("--margin-threshold", type=float, default=0.10)
     parser.add_argument("--temperature", type=float, default=1.0)
     args = parser.parse_args()
-    result = predict_gguf(args.topic, args.filename, args.model,
-                          args.confidence_threshold, args.margin_threshold,
-                          args.temperature, args.device)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+    single_mode = args.topic is not None or args.filename is not None
+    if args.input_jsonl and single_mode:
+        parser.error("Use either --input-jsonl or --topic/--filename, not both.")
+    if bool(args.topic) != bool(args.filename):
+        parser.error("--topic and --filename must be supplied together.")
+    if not args.input_jsonl and not single_mode:
+        parser.error("Supply --input-jsonl or both --topic and --filename.")
+    if not 1 <= args.batch_size <= 1024:
+        parser.error("--batch-size must be between 1 and 1024.")
+
+    session = LionAIGGUFSession(
+        args.model, args.confidence_threshold, args.margin_threshold,
+        args.temperature, args.device
+    )
+    if single_mode:
+        print(json.dumps(session.predict(args.topic, args.filename), ensure_ascii=False, indent=2))
+        return 0
+
+    input_path = Path(args.input_jsonl)
+    output_path = Path(args.output_jsonl) if args.output_jsonl else None
+    if output_path is not None and input_path.resolve() == output_path.resolve():
+        parser.error("Input and output JSONL paths must be different.")
+    output_handle = None
+    temporary_path = None
+    try:
+        if output_path is not None:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary_path = output_path.with_name(output_path.name + ".tmp")
+            output_handle = temporary_path.open("w", encoding="utf-8", newline="\\n")
+        for records in _iter_jsonl_batches(input_path, args.batch_size):
+            results = session.predict_batch(records, batch_size=args.batch_size)
+            for result in results:
+                line = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+                if output_handle is None:
+                    print(line)
+                else:
+                    output_handle.write(line + "\\n")
+        if output_handle is not None:
+            output_handle.close()
+            temporary_path.replace(output_path)
+    except Exception:
+        if output_handle is not None and not output_handle.closed:
+            output_handle.close()
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
     return 0
 
 
