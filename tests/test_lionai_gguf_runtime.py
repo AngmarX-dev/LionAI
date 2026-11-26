@@ -8,7 +8,7 @@ from pathlib import Path
 import torch
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
-from training.lionai_gguf_runtime import GGUFError, GGUFReader, load_gguf_model, predict_gguf
+from training.lionai_gguf_runtime import (\n    GGUFError, GGUFReader, LionAIGGUFSession, load_gguf_model, predict_gguf,\n)
 from training.metadata_rules import extension_rule
 
 
@@ -137,6 +137,64 @@ class LionAIGGUFTests(unittest.TestCase):
         self.assertEqual(result["decision_source"], "extension_rule")
         self.assertTrue(result["rule_override"])
         self.assertTrue(result["needs_review"])
+
+    def test_batch_predictions_match_single_predictions_and_keep_order(self):
+        torch.manual_seed(4321)
+        config = LionAIConfig(dropout=0.0)
+        model = build_model(config).eval()
+        labels = [f"class-{i}" for i in range(config.num_classes)]
+        records = [
+            {"topic": "photos", "filename": "summer.jpg"},
+            {"topic": "documents", "filename": "notes.txt"},
+            {"topic": "audio", "filename": "voice.mp3"},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.gguf"
+            _write_test_gguf(path, model, labels, config)
+            session = LionAIGGUFSession(path, device="cpu")
+            batch_results = session.predict_batch(records, batch_size=2)
+            single_results = [
+                session.predict(row["topic"], row["filename"]) for row in records
+            ]
+        self.assertEqual(len(batch_results), len(records))
+        self.assertEqual(batch_results, single_results)
+        self.assertEqual(
+            [row["filename"] for row in batch_results],
+            ["summer.jpg", "notes.txt", "voice.mp3"],
+        )
+
+    def test_batch_rejects_paths_and_extra_metadata_fields(self):
+        torch.manual_seed(4321)
+        config = LionAIConfig(dropout=0.0)
+        model = build_model(config).eval()
+        labels = [f"class-{i}" for i in range(config.num_classes)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.gguf"
+            _write_test_gguf(path, model, labels, config)
+            session = LionAIGGUFSession(path, device="cpu")
+            with self.assertRaises(ValueError):
+                session.predict_batch([{"topic": "docs", "filename": "folder\\\\note.txt"}])
+            with self.assertRaises(ValueError):
+                session.predict_batch([{
+                    "topic": "docs", "filename": "note.txt", "content": "must not be accepted"
+                }])
+            with self.assertRaises(ValueError):
+                session.predict_batch([{"topic": "", "filename": "note.txt"}])
+
+    def test_batch_size_is_bounded_and_empty_batch_is_supported(self):
+        torch.manual_seed(4321)
+        config = LionAIConfig(dropout=0.0)
+        model = build_model(config).eval()
+        labels = [f"class-{i}" for i in range(config.num_classes)]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.gguf"
+            _write_test_gguf(path, model, labels, config)
+            session = LionAIGGUFSession(path, device="cpu")
+            self.assertEqual(session.predict_batch([]), [])
+            with self.assertRaises(ValueError):
+                session.predict_batch([], batch_size=0)
+            with self.assertRaises(ValueError):
+                session.predict_batch([], batch_size=1025)
 
     def test_rejects_non_gguf_file(self):
         with tempfile.TemporaryDirectory() as directory:
