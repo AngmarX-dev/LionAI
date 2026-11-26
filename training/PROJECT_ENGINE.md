@@ -214,3 +214,40 @@ No synchronization executor is included in this milestone. A future executor
 must independently require explicit user approval, revalidate the target
 filesystem immediately before each operation, and keep destructive actions
 behind a separate confirmation step.
+
+
+## Confirmed project synchronization executor
+
+`training/project_sync_executor.py` adds a guarded executor for non-destructive
+synchronization actions.
+
+- Execution requires `confirmed=True`; truthy substitutes such as `1` or
+  `"yes"` are rejected.
+- The project root must already exist and must not be a symlink.
+- Paths are checked for traversal, duplicate operations, and symlink
+  components. Existing creation targets are rejected.
+- Before any mutation, all update targets must still match the exact original
+  text snapshot captured by the synchronization planner. If the current scan
+  did not capture a file's content, an update cannot be executed safely and is
+  rejected.
+- New files use exclusive creation. Updated files use a same-directory
+  temporary file followed by atomic replacement.
+- If an operation fails, the executor attempts to restore updated files and
+  remove files/directories created during that invocation.
+- Pending removals are informational only. Delete actions are rejected even
+  when marked destructive; deletion execution is intentionally deferred to a
+  separate implementation with its own approval and rollback model.
+
+Example:
+
+```python
+from training.project_sync_executor import execute_sync_plan
+
+# Show sync.preview() and obtain an explicit user approval first.
+result = execute_sync_plan(sync, "./workspace/demo", confirmed=True)
+print(result)
+```
+
+The executor supports text files only. It does not execute generated code,
+modify file permissions, or follow symlinks intentionally. Rollback is
+best-effort if the underlying filesystem itself prevents restoration.
