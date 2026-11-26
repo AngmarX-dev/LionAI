@@ -7,7 +7,7 @@ reviewable template before any filesystem operation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+import json
 
 from training.project_engine import ProjectPlan, ProjectStructureError
 
@@ -41,13 +41,15 @@ def _validate(intent: ProjectIntent) -> None:
         raise ProjectStructureError("intent must be a ProjectIntent.")
     if not isinstance(intent.name, str) or not intent.name.strip():
         raise ProjectStructureError("Project name must be non-empty.")
-    if intent.framework not in SUPPORTED_FRAMEWORKS:
+    if not isinstance(intent.framework, str) or intent.framework not in SUPPORTED_FRAMEWORKS:
         raise ProjectStructureError(
             f"Unsupported framework {intent.framework!r}; choose one of "
             f"{', '.join(sorted(SUPPORTED_FRAMEWORKS))}."
         )
     if not isinstance(intent.features, tuple):
         raise ProjectStructureError("features must be a tuple of feature names.")
+    if any(not isinstance(feature, str) for feature in intent.features):
+        raise ProjectStructureError("Each feature must be a string.")
     if len(set(intent.features)) != len(intent.features):
         raise ProjectStructureError("Duplicate project features are not allowed.")
     unknown = set(intent.features) - SUPPORTED_FEATURES
