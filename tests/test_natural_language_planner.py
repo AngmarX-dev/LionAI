@@ -19,6 +19,11 @@ class NaturalLanguagePlannerTests(unittest.TestCase):
         intent = parse_project_request("Create a FastAPI service with database and tests")
         self.assertEqual(intent.framework, "fastapi")
         self.assertEqual(set(intent.features), {"database", "tests"})
+        plan = plan_project_request("Create a FastAPI service with database and tests")
+        paths = {entry.path for entry in plan.entries}
+        self.assertIn("app/database.py", paths)
+        requirements = next(entry.content for entry in plan.entries if entry.path == "requirements.txt")
+        self.assertIn("SQLAlchemy", requirements)
 
     def test_parses_python_cli(self):
         plan = plan_project_request("یک ابزار خط فرمان Python با تست بساز")
