@@ -107,13 +107,26 @@ def build_sync_plan(
             if current_by_path[path].kind != desired_by_path[path].kind
         },
     }
+    shared_same_kind = {
+        path for path in current_by_path.keys() & desired_by_path.keys()
+        if current_by_path[path].kind == desired_by_path[path].kind
+    }
+    expected["modified"] = {
+        path for path in shared_same_kind
+        if diff.content_compared
+        and current_by_path[path].kind == "file"
+        and current_by_path[path].content != desired_by_path[path].content
+    }
+    expected["unchanged"] = shared_same_kind - expected["modified"]
     actual = {
         "added": {item.path for item in diff.added},
         "removed": {item.path for item in diff.removed},
+        "modified": {item.path for item in diff.modified},
+        "unchanged": {item.path for item in diff.unchanged},
         "conflicts": {item.path for item in diff.conflicts},
     }
     # Diff intentionally omits descendants below a type conflict.
-    for key in ("added", "removed"):
+    for key in ("added", "removed", "modified", "unchanged"):
         blocked = {
             path for conflict in expected["conflicts"]
             for path in expected[key] if path.startswith(conflict + "/")
