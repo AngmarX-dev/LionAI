@@ -33,6 +33,12 @@ class ProjectIntentTests(unittest.TestCase):
         ):
             self.assertIn(expected, preview)
 
+    def test_flask_tests_do_not_assume_database_module(self):
+        plan = build_project_plan(ProjectIntent("minimal-flask", "flask", ("tests",)))
+        paths = {entry.path for entry in plan.entries}
+        self.assertIn("tests/test_routes.py", paths)
+        self.assertNotIn("tests/test_models.py", paths)
+
     def test_fastapi_template_has_application_entrypoint(self):
         plan = build_project_plan(ProjectIntent("api-service", "fastapi"))
         paths = {entry.path for entry in plan.entries}
