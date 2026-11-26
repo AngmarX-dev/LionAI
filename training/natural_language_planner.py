@@ -13,29 +13,29 @@ from training.project_intent import ProjectIntent, build_project_plan
 
 
 _FRAMEWORK_PATTERNS = {
-    "flask": (r"\\bflask\\b", r"فلا?سک"),
-    "fastapi": (r"\\bfast\\s*api\\b", r"\\bfastapi\\b", r"فست\\s*ا?پی"),
+    "flask": (r"\bflask\b", r"فلا?سک"),
+    "fastapi": (r"\bfast\s*api\b", r"\bfastapi\b", r"فست\s*ا?پی"),
     "python-cli": (
-        r"\\bpython\\s*(?:cli|command[- ]line)\\b",
-        r"\\bcli\\b",
-        r"خط\\s*فرمان\\s*(?:پایتون)?",
+        r"\bpython\s*(?:cli|command[- ]line)\b",
+        r"\bcli\b",
+        r"خط\s*فرمان\s*(?:پایتون)?",
     ),
 }
 
 _FEATURE_PATTERNS = {
-    "tests": (r"\\btests?\\b", r"\\bpytest\\b", r"تست", r"آزمون"),
-    "templates": (r"\\btemplates?\\b", r"\\bhtml\\b", r"قالب", r"تمپلیت"),
-    "static": (r"\\bstatic\\b", r"\\bcss\\b", r"\\bjavascript\\b", r"\\bjs\\b", r"فایل\\s*های?\\s*استاتیک"),
-    "database": (r"\\bdatabase\\b", r"\\bdb\\b", r"\\bsql(?:ite)?\\b", r"پایگاه\\s*داده", r"دیتابیس"),
+    "tests": (r"\btests?\b", r"\bpytest\b", r"تست", r"آزمون"),
+    "templates": (r"\btemplates?\b", r"\bhtml\b", r"قالب", r"تمپلیت"),
+    "static": (r"\bstatic\b", r"\bcss\b", r"\bjavascript\b", r"\bjs\b", r"فایل\s*های?\s*استاتیک"),
+    "database": (r"\bdatabase\b", r"\bdb\b", r"\bsql(?:ite)?\b", r"پایگاه\s*داده", r"دیتابیس"),
     "authentication": (
-        r"\\bauth(?:entication)?\\b", r"\\blogin\\b", r"\\bsign[- ]?in\\b",
-        r"\\buser\\s*accounts?\\b", r"ورود", r"احراز\\s*هویت", r"ثبت\\s*نام",
+        r"\bauth(?:entication)?\b", r"\blogin\b", r"\bsign[- ]?in\b",
+        r"\buser\s*accounts?\b", r"ورود", r"احراز\s*هویت", r"ثبت\s*نام",
     ),
 }
 
 _NAME_PATTERNS = (
-    r"(?:project\\s+name|نام\\s+پروژه)\\s*[:=]?\\s*([a-zA-Z0-9][a-zA-Z0-9._-]{0,63})",
-    r"(?:named|به\\s+نام|با\\s+نام)\\s+([a-zA-Z0-9][a-zA-Z0-9._-]{0,63})",
+    r"(?:project\s+name|نام\s+پروژه)\s*[:=]?\s*([a-zA-Z0-9][a-zA-Z0-9._-]{0,63})",
+    r"(?:named|به\s+نام|با\s+نام)\s+([a-zA-Z0-9][a-zA-Z0-9._-]{0,63})",
 )
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
