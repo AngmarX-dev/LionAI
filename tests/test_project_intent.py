@@ -12,7 +12,7 @@ class ProjectIntentTests(unittest.TestCase):
             ProjectIntent(
                 name="flask-shop",
                 framework="flask",
-                features=("tests", "templates", "static", "database"),
+                features=("tests", "templates", "static", "database", "authentication"),
             )
         )
         preview = plan.preview()
