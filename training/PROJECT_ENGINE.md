@@ -104,3 +104,37 @@ through `ProjectPlan.apply(..., confirmed=True)`.
 Default feature sets are framework-aware: Flask receives the full web starter,
 while FastAPI and Python CLI receive tests by default. Authentication remains
 an explicit Flask-only feature.
+
+
+## Project reconstruction
+
+`training/project_reconstruction.py` reconstructs a structure-only ProjectPlan
+from either a canonical Unicode tree listing or an existing directory.
+
+- `parse_tree_text(text, project_name=...)` accepts tree output using
+  `├──`, `└──`, and `│` indentation. A trailing slash marks directories;
+  parents containing children are inferred as directories.
+- `scan_directory(path)` walks an existing directory without following
+  symlinks. Empty directories are retained.
+- Both paths enforce entry limits and reject unsafe names or malformed input.
+- File contents are omitted by default. Optional UTF-8 capture is size-bounded
+  and skips common secret filenames such as .env, key, token, and credentials.
+- Reconstruction is read-only. It returns a normal ProjectPlan for preview;
+  creating a separate copy still requires explicit confirmation through
+  ProjectPlan.apply and never overwrites an existing project.
+
+Example:
+
+```python
+from training.project_reconstruction import parse_tree_text, scan_directory
+
+tree_plan = parse_tree_text("demo/\\n├── src/\\n│   └── main.py\\n")
+print(tree_plan.preview())
+
+existing_plan = scan_directory("./existing-project")
+print(existing_plan.preview())
+```
+
+The parser reconstructs structure, not missing source code or semantic intent.
+For a bare leaf in a tree listing, the default interpretation is a file unless
+it is marked with a trailing slash or contains children.
