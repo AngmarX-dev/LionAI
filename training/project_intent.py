@@ -26,7 +26,7 @@ SUPPORTED_FEATURES = {
 class ProjectIntent:
     name: str
     framework: str
-    features: tuple[str, ...] = ("tests", "templates", "static", "database", "authentication")
+    features: tuple[str, ...] = ()
 
 
 def _entry(path: str, kind: str, content: str = "") -> dict[str, str]:
@@ -48,20 +48,26 @@ def _validate(intent: ProjectIntent) -> None:
         )
     if not isinstance(intent.features, tuple):
         raise ProjectStructureError("features must be a tuple of feature names.")
-    if any(not isinstance(feature, str) for feature in intent.features):
+    if any(not isinstance(feature, str) for feature in features):
         raise ProjectStructureError("Each feature must be a string.")
     if len(set(intent.features)) != len(intent.features):
         raise ProjectStructureError("Duplicate project features are not allowed.")
     unknown = set(intent.features) - SUPPORTED_FEATURES
     if unknown:
         raise ProjectStructureError(f"Unsupported features: {', '.join(sorted(unknown))}")
-    if "authentication" in intent.features and intent.framework == "python-cli":
+    if "authentication" in features and intent.framework == "python-cli":
         raise ProjectStructureError("Authentication is not a supported Python CLI feature.")
 
 
 def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
     """Create a validated starter plan without touching the filesystem."""
     _validate(intent)
+    defaults = {
+        "flask": ("tests", "templates", "static", "database", "authentication"),
+        "fastapi": ("tests",),
+        "python-cli": ("tests",),
+    }
+    features = intent.features or defaults[intent.framework]
     entries: list[dict[str, str]] = []
 
     if intent.framework == "flask":
@@ -85,7 +91,7 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
             _entry(".gitignore", "file", "venv/\n__pycache__/\n.env\n*.py[cod]\n"),
             _entry(".env.example", "file", "SECRET_KEY=replace-me-locally\n"),
         ])
-        if "templates" in intent.features:
+        if "templates" in features:
             entries.extend([
                 _entry("app/templates", "directory"),
                 _entry("app/templates/base.html", "file",
@@ -99,7 +105,7 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                 _entry("app/templates/dashboard.html", "file",
                        "{% extends 'base.html' %}\n{% block content %}<h1>Dashboard</h1>{% endblock %}\n"),
             ])
-        if "static" in intent.features:
+        if "static" in features:
             entries.extend([
                 _entry("app/static", "directory"),
                 _entry("app/static/css", "directory"),
@@ -108,20 +114,20 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                 _entry("app/static/js/main.js", "file", "'use strict';\n"),
                 _entry("app/static/images", "directory"),
             ])
-        if "database" in intent.features:
+        if "database" in features:
             entries.extend([
                 _entry("app/models.py", "file", '"""Database models go here."""\n'),
                 _entry("migrations", "directory"),
                 _entry("instance", "directory"),
                 _entry("instance/config.py", "file", "# Local instance configuration.\n"),
             ])
-        if "authentication" in intent.features:
+        if "authentication" in features:
             entries.extend([
                 _entry("app/forms.py", "file", '"""Authentication forms go here."""\n'),
                 _entry("app/auth", "directory"),
                 _entry("app/auth/__init__.py", "file", ""),
             ])
-        if "tests" in intent.features:
+        if "tests" in features:
             entries.extend([
                 _entry("tests", "directory"),
                 _entry("tests/__init__.py", "file", ""),
@@ -143,7 +149,7 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
             _entry("requirements.txt", "file", "fastapi>=0.110\nuvicorn[standard]>=0.27\n"),
             _entry("README.md", "file", f"# {intent.name}\n\nFastAPI starter project.\n"),
         ])
-        if "tests" in intent.features:
+        if "tests" in features:
             entries.extend([
                 _entry("tests", "directory"),
                 _entry("tests/test_main.py", "file",
@@ -163,7 +169,7 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                    "[project]\nname = " + json.dumps(intent.name) + "\nversion = \"0.1.0\"\n"
                    "requires-python = \">=3.11\"\n"),
         ])
-        if "tests" in intent.features:
+        if "tests" in features:
             entries.extend([
                 _entry("tests", "directory"),
                 _entry("tests/test_main.py", "file",
