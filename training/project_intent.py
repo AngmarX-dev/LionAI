@@ -83,6 +83,7 @@ def build_project_plan(intent: ProjectIntent) -> ProjectPlan:
                    "if __name__ == '__main__':\n    app.run()\n"),
             _entry("README.md", "file", f"# {intent.name}\n\nFlask starter project.\n"),
             _entry(".gitignore", "file", "venv/\n__pycache__/\n.env\n*.py[cod]\n"),
+            _entry(".env.example", "file", "SECRET_KEY=replace-me-locally\n"),
         ])
         if "templates" in intent.features:
             entries.extend([
