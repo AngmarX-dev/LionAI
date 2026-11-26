@@ -3,13 +3,14 @@ from __future__ import annotations
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import torch
 
 from lionai_scratch import LionAIConfig, LionAITokenizer, build_model
 from training.lionai_gguf_runtime import (
-    GGUFError, GGUFReader, LionAIGGUFSession, load_gguf_model, predict_gguf,
+    GGUFError, GGUFReader, LionAIGGUFSession, load_gguf_model, main as runtime_main, predict_gguf,
 )
 from training.metadata_rules import extension_rule
 
@@ -197,6 +198,39 @@ class LionAIGGUFTests(unittest.TestCase):
                 session.predict_batch([], batch_size=0)
             with self.assertRaises(ValueError):
                 session.predict_batch([], batch_size=1025)
+
+    def test_jsonl_cli_writes_ordered_batch_results_atomically(self):
+        torch.manual_seed(9876)
+        config = LionAIConfig(dropout=0.0)
+        model = build_model(config).eval()
+        labels = [f"class-{i}" for i in range(config.num_classes)]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            model_path = root / "fixture.gguf"
+            input_path = root / "metadata.jsonl"
+            output_path = root / "predictions.jsonl"
+            _write_test_gguf(model_path, model, labels, config)
+            input_path.write_text(
+                '{"topic":"photos","filename":"one.jpg"}\\n'
+                '{"topic":"documents","filename":"two.txt"}\\n'
+                '{"topic":"audio","filename":"three.mp3"}\\n',
+                encoding="utf-8",
+            )
+            with patch("sys.argv", [
+                "lionai_gguf_runtime.py", "--model", str(model_path),
+                "--input-jsonl", str(input_path), "--output-jsonl", str(output_path),
+                "--batch-size", "2", "--device", "cpu",
+            ]):
+                self.assertEqual(runtime_main(), 0)
+            rows = [
+                __import__("json").loads(line)
+                for line in output_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(
+                [row["filename"] for row in rows],
+                ["one.jpg", "two.txt", "three.mp3"],
+            )
+            self.assertFalse(output_path.with_name(output_path.name + ".tmp").exists())
 
     def test_rejects_non_gguf_file(self):
         with tempfile.TemporaryDirectory() as directory:
