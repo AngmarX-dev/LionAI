@@ -101,7 +101,7 @@ jobs:
             --learning-rate 0.00015 \
             --weight-decay 0.05 \
             --label-smoothing 0.05 \
-            --sampling-power 0.25 \
+            --sampling-power 0.50 \
             --d-model 128 \
             --n-heads 4 \
             --n-layers 2 \
