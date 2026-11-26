@@ -69,8 +69,10 @@ class ProjectPlan:
             parts = PurePosixPath(entry.path).parts
             for index in range(1, len(parts)):
                 parent = "/".join(parts[:index])
-                if seen.get(parent) == "file":
-                    raise ProjectStructureError(f"Parent path is a file: {parent}")
+                if seen.get(parent) != "directory":
+                    raise ProjectStructureError(
+                        f"Parent directory must be explicitly declared: {parent}"
+                    )
 
         for entry in normalized:
             if entry.kind == "file":
