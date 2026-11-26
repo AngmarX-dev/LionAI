@@ -84,3 +84,23 @@ Supported frameworks: `flask`, `fastapi`, and `python-cli`.
 Supported optional features: `tests`, `templates`, `static`, `database`,
 and `authentication` (Flask only). Unsupported combinations are rejected.
 Planning is read-only; only the separately confirmed ProjectPlan can create files.
+
+
+## Natural-language project requests
+
+`training/natural_language_planner.py` adds a conservative Persian/English
+parser for explicit Flask, FastAPI, and Python CLI requests. It recognizes
+project names when written as `project name: ...`, `نام پروژه: ...`, or
+`named ...`; callers may also pass `project_name` directly. Otherwise it
+uses a predictable framework-based name.
+
+Recognized feature phrases map to tests, templates, static assets, database,
+and Flask authentication. Ambiguous or unsupported frameworks and unsafe names
+are rejected instead of guessed. This parser is deterministic phrase matching,
+not an LLM. `plan_project_request()` only returns a previewable plan and never
+writes to disk. Filesystem creation still requires an explicit confirmation
+through `ProjectPlan.apply(..., confirmed=True)`.
+
+Default feature sets are framework-aware: Flask receives the full web starter,
+while FastAPI and Python CLI receive tests by default. Authentication remains
+an explicit Flask-only feature.
